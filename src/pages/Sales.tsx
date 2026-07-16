@@ -52,19 +52,38 @@ const Sales = () => {
   const [vSlot, setVSlot] = useState<{ tray: Tray; spring: Spring } | null>(null);
   const [vForm, setVForm] = useState({ quantity: "1", unit_price: "", customer_id: "", customer_name: "", notes: "" });
 
-  const load = async () => {
-    // 1. Cargar ventas manuales (Supabase)
+const load = async () => {
+    // 1. CARGAMOS LA INTERFAZ PRIMERO (Máquinas, Productos, etc.)
+    // Así evitamos que la pantalla diga "No hay máquinas" mientras Render despierta
+    const { data: m } = await supabase.from("machines").select("id, name, code, coin_current, layout");
+    const { data: p } = await supabase.from("products").select("id, name, unit_cost, sale_price");
+    const { data: c } = await supabase.from("customers").select("id, name").eq("active", true).order("name");
+    const { data: d } = await supabase
+      .from("vending_consumptions")
+      .select("*, machines(name), products(name, unit_cost)")
+      .eq("status", "pending")
+      .order("consumed_at", { ascending: false });
+
+    setMachines((m as any) || []);
+    setProducts(p || []);
+    setCustomers(c || []);
+    setDebts(d || []);
+
+    // 2. Cargamos las ventas manuales (Supabase)
     const { data: supaSales } = await supabase
       .from("sales")
       .select("*, machines(name), products(name)")
       .order("sold_at", { ascending: false })
       .limit(100);
 
-    // 2. Cargar ventas reales/automáticas (Tu Backend PostgreSQL)
+    // 3. Cargamos las ventas reales (Tu Backend PostgreSQL)
     let hwSales: any[] = [];
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      const res = await fetch(`${apiUrl}/api/ventas/historial`);
+      
+      // OJO: Si en tu backend (app.js) tus rutas dicen '/api/sales', 
+      // cambia la palabra 'ventas' por 'sales' en la línea de abajo.
+      const res = await fetch(`${apiUrl}/api/ventas/historial`); 
       const hwData = await res.json();
       
       if (hwData.success) {
@@ -84,27 +103,12 @@ const Sales = () => {
       console.error("Error cargando historial de hardware:", err);
     }
 
-    // 3. Unir ambas listas y ordenarlas por fecha descendente
+    // 4. Unir ambas listas y mostrarlas
     const combinedSales = [...(supaSales || []), ...hwSales].sort(
       (a, b) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime()
     );
 
     setList(combinedSales);
-
-    // 4. Cargar el resto de dependencias
-    const { data: m } = await supabase.from("machines").select("id, name, code, coin_current, layout");
-    const { data: p } = await supabase.from("products").select("id, name, unit_cost, sale_price");
-    const { data: c } = await supabase.from("customers").select("id, name").eq("active", true).order("name");
-    const { data: d } = await supabase
-      .from("vending_consumptions")
-      .select("*, machines(name), products(name, unit_cost)")
-      .eq("status", "pending")
-      .order("consumed_at", { ascending: false });
-
-    setMachines((m as any) || []);
-    setProducts(p || []);
-    setCustomers(c || []);
-    setDebts(d || []);
   };
 
   useEffect(() => { 
