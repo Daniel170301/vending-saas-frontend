@@ -55,7 +55,8 @@ const Sales = () => {
 const load = async () => {
   try {
     const apiUrl = import.meta.env.VITE_API_URL || "";
-    const fetchUrl = `${apiUrl}/api/ventas/historial`;
+    // Cambia tu línea actual por esta:
+    const fetchUrl = `${apiUrl.replace(/\/api$/, '')}/api/ventas/historial`;
 
     console.log("1. Buscando en:", fetchUrl);
 
