@@ -91,7 +91,9 @@ const load = async () => {
   }
 };
 
-
+useEffect(() => {
+  load();
+}, []); // Los corchetes vacíos aseguran que cargue al abrir la página
   // ¡IMPORTANTE! 
   // Borra o comenta el useEffect de Supabase Realtime que tenías aquí abajo.
   // Ese código que decía `supabase.channel("sales-vc")` es el culpable 
