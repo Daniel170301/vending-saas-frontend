@@ -53,41 +53,16 @@ const Sales = () => {
   const [vForm, setVForm] = useState({ quantity: "1", unit_price: "", customer_id: "", customer_name: "", notes: "" });
 
 const load = async () => {
-    // 1. CARGAMOS LA INTERFAZ PRIMERO (Máquinas, Productos, etc.)
-    // Así evitamos que la pantalla diga "No hay máquinas" mientras Render despierta
-    const { data: m } = await supabase.from("machines").select("id, name, code, coin_current, layout");
-    const { data: p } = await supabase.from("products").select("id, name, unit_cost, sale_price");
-    const { data: c } = await supabase.from("customers").select("id, name").eq("active", true).order("name");
-    const { data: d } = await supabase
-      .from("vending_consumptions")
-      .select("*, machines(name), products(name, unit_cost)")
-      .eq("status", "pending")
-      .order("consumed_at", { ascending: false });
-
-    setMachines((m as any) || []);
-    setProducts(p || []);
-    setCustomers(c || []);
-    setDebts(d || []);
-
-    // 2. Cargamos las ventas manuales (Supabase)
-    const { data: supaSales } = await supabase
-      .from("sales")
-      .select("*, machines(name), products(name)")
-      .order("sold_at", { ascending: false })
-      .limit(100);
-
-    // 3. Cargamos las ventas reales (Tu Backend PostgreSQL)
-    let hwSales: any[] = [];
     try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      
-      // OJO: Si en tu backend (app.js) tus rutas dicen '/api/sales', 
-      // cambia la palabra 'ventas' por 'sales' en la línea de abajo.
-      const res = await fetch(`${apiUrl}/api/ventas/historial`); 
+      const apiUrl = import.meta.env.VITE_API_URL; // Esto ya trae "https://tu-url.onrender.com/api"
+
+      // 1. CARGAR VENTAS REALES (Desde tu PostgreSQL en Render)
+      // Nota: Le quitamos el /api extra para que no choque
+      const res = await fetch(`${apiUrl}/ventas/historial`); 
       const hwData = await res.json();
       
       if (hwData.success) {
-        hwSales = hwData.ventas.map((v: any) => ({
+        const hwSales = hwData.ventas.map((v: any) => ({
           id: `hw-${v.id}`,
           sold_at: v.fecha,
           machines: { name: v.machine_id }, 
@@ -98,23 +73,40 @@ const load = async () => {
           source: "Yape/IoT",
           customer_name: v.nombre_cliente 
         }));
+        
+        // Ordenamos por fecha
+        hwSales.sort((a: any, b: any) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime());
+        setList(hwSales);
+      } else {
+        setList([]);
       }
+
+      // 2. MIGRACIÓN DEL RESTO DE DATOS
+      // Como ya no usas Supabase, aquí llamaremos a tus propias rutas en el futuro.
+      // Por ahora las inicializamos vacías para que la pantalla no explote con errores rojos.
+      
+      // Ejemplo de cómo será cuando conectemos tu backend:
+      // const resMachines = await fetch(`${apiUrl}/machines`);
+      // const dataMachines = await resMachines.json();
+      // setMachines(dataMachines);
+      
+      setMachines([]); 
+      setProducts([]);
+      setCustomers([]);
+      setDebts([]);
+
     } catch (err) {
-      console.error("Error cargando historial de hardware:", err);
+      console.error("Error cargando historial de tu backend:", err);
     }
-
-    // 4. Unir ambas listas y mostrarlas
-    const combinedSales = [...(supaSales || []), ...hwSales].sort(
-      (a, b) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime()
-    );
-
-    setList(combinedSales);
   };
 
-  useEffect(() => { 
-    document.title = "Ventas | InventaXo"; 
-    load(); 
-  }, []);
+
+
+  // ¡IMPORTANTE! 
+  // Borra o comenta el useEffect de Supabase Realtime que tenías aquí abajo.
+  // Ese código que decía `supabase.channel("sales-vc")` es el culpable 
+  // de los errores de WebSocket en tu consola.
+
 
   // Realtime: refresh debts when consumptions change
   useEffect(() => {
