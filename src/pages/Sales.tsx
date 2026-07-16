@@ -55,22 +55,21 @@ const Sales = () => {
 const load = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "";
-      
-      // 1. URL Inteligente: Esto evita el error de "/api/api/" o que falte la ruta
-      const fetchUrl = apiUrl.includes('/api') 
+      const fetchUrl = apiUrl.endsWith('/api') 
         ? `${apiUrl}/ventas/historial` 
         : `${apiUrl}/api/ventas/historial`;
 
       console.log("1. Frontend buscando ventas en:", fetchUrl);
 
-      // 2. Hacemos la petición al backend
-      const res = await fetch(`${apiUrl}/ventas/historial`);
+      const res = await fetch(fetchUrl);
       const hwData = await res.json();
+      
+      console.log("2. Respuesta cruda del servidor:", hwData);
 
-      console.log("2. Datos recibidos con éxito:", hwData);
-
-      // 3. Transformamos los datos para que la tabla los entienda
-      if (hwData.success && hwData.ventas) {
+      // ¡Aquí está el filtro de seguridad!
+      // Si recibes un objeto que tiene "today" o "profit" (Dashboard), 
+      // lo ignoramos porque no es una lista de ventas.
+      if (hwData && hwData.ventas && Array.isArray(hwData.ventas)) {
         const hwSales = hwData.ventas.map((v: any) => ({
           id: `hw-${v.id}`,
           sold_at: v.fecha,
@@ -83,24 +82,14 @@ const load = async () => {
           customer_name: v.nombre_cliente 
         }));
         
-        // Ordenamos las ventas de la más nueva a la más antigua
         hwSales.sort((a: any, b: any) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime());
-        
-        // ¡Actualizamos la pantalla!
         setList(hwSales);
-        console.log("Estado de la lista (list) que se muestra en la tabla:", hwSales);
       } else {
+        console.warn("⚠️ El servidor respondió pero no es la lista de ventas. Revisa salesController.js");
         setList([]);
       }
-
-      // 4. Limpiamos las dependencias antiguas de Supabase
-      setMachines([]); 
-      setProducts([]);
-      setCustomers([]);
-      setDebts([]);
-
     } catch (err) {
-      console.error("3. Error en el puente Frontend-Backend:", err);
+      console.error("3. Error en el puente:", err);
     }
   };
 
