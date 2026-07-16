@@ -64,7 +64,7 @@ const load = async () => {
       console.log("1. Frontend buscando ventas en:", fetchUrl);
 
       // 2. Hacemos la petición al backend
-      const res = await fetch(fetchUrl);
+      const res = await fetch(`${apiUrl}/ventas/historial`);
       const hwData = await res.json();
 
       console.log("2. Datos recibidos con éxito:", hwData);
