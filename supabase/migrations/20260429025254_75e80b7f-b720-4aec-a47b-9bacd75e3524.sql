@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS unit_type TEXT NOT NULL DEFAULT 'unidad';

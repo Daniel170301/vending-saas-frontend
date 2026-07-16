@@ -1,0 +1,4 @@
+project_id = "mwkkxafnwrfijyovjipx"
+
+[functions.iot-sale]
+verify_jwt = false

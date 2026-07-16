@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "product images public read" ON storage.objects;
