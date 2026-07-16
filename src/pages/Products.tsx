@@ -218,8 +218,8 @@ const save = async () => {
     load();
   };
 
-  const totalInventoryValue = list.reduce((sum, p) => sum + (Number(p.unit_cost) || 0) * (Number(p.stock_warehouse) || 0), 0);
-  const totalUnits = list.reduce((sum, p) => sum + (Number(p.stock_warehouse) || 0), 0);
+const totalInventoryValue = list.reduce((sum, p) => sum + (Number(p.precio) || 0) * (Number(p.stock) || 0), 0);
+const totalUnits = list.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
   const usedCategories = Array.from(new Set(list.map((p) => p.category).filter(Boolean) as string[]));
 
   const filtered = activeCat ? list.filter((p) => p.category === activeCat) : list;
