@@ -62,7 +62,7 @@ const load = async () => {
       const res = await fetch(fetchUrl);
       const hwData = await res.json();
       
-      console.log("2. Respuesta cruda del servidor:", hwData);
+      
 
       // ¡Aquí está el filtro de seguridad!
       // Si recibes un objeto que tiene "today" o "profit" (Dashboard), 
