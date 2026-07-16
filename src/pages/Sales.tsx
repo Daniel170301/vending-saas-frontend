@@ -88,6 +88,7 @@ const load = async () => {
         
         // ¡Actualizamos la pantalla!
         setList(hwSales);
+        console.log("Estado de la lista (list) que se muestra en la tabla:", hwSales);
       } else {
         setList([]);
       }
