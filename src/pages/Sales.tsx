@@ -26,7 +26,7 @@ const normalize = (l: any): Layout => {
     trays: l.trays.map((t: any) => ({
       id: t.id, label: t.label || "Bandeja",
       springs: (t.springs || []).map((s: any) => ({
-        id: s.id, label: s.label || "R", capacity: Number(s.capacity) || 0,
+        id: s.id, label: s.label || "R", capacity: Number(s.capacity) || 10,
         product_id: s.product_id ?? null, sale_price: Number(s.sale_price) || 0,
         current_qty: Number(s.current_qty) || 0,
       })),
@@ -40,22 +40,58 @@ const Sales = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [debts, setDebts] = useState<any[]>([]);
-
+  
   // dialogs
   const [pickerOpen, setPickerOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [vendingOpen, setVendingOpen] = useState(false);
-
   const [form, setForm] = useState({ machine_id: "", product_id: "", quantity: "1", unit_price: "" });
-
+  
   // vending flow
   const [vMachine, setVMachine] = useState<Machine | null>(null);
   const [vSlot, setVSlot] = useState<{ tray: Tray; spring: Spring } | null>(null);
   const [vForm, setVForm] = useState({ quantity: "1", unit_price: "", customer_id: "", customer_name: "", notes: "" });
 
   const load = async () => {
-    const { data } = await supabase.from("sales").select("*, machines(name), products(name)").order("sold_at", { ascending: false }).limit(100);
-    setList(data || []);
+    // 1. Cargar ventas manuales (Supabase)
+    const { data: supaSales } = await supabase
+      .from("sales")
+      .select("*, machines(name), products(name)")
+      .order("sold_at", { ascending: false })
+      .limit(100);
+
+    // 2. Cargar ventas reales/automáticas (Tu Backend PostgreSQL)
+    let hwSales: any[] = [];
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const res = await fetch(`${apiUrl}/api/ventas/historial`);
+      const hwData = await res.json();
+      
+      if (hwData.success) {
+        hwSales = hwData.ventas.map((v: any) => ({
+          id: `hw-${v.id}`,
+          sold_at: v.fecha,
+          machines: { name: v.machine_id }, 
+          products: { name: v.nombre_producto },
+          quantity: 1,
+          unit_price: v.precio,
+          total: v.precio,
+          source: "Yape/IoT",
+          customer_name: v.nombre_cliente 
+        }));
+      }
+    } catch (err) {
+      console.error("Error cargando historial de hardware:", err);
+    }
+
+    // 3. Unir ambas listas y ordenarlas por fecha descendente
+    const combinedSales = [...(supaSales || []), ...hwSales].sort(
+      (a, b) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime()
+    );
+
+    setList(combinedSales);
+
+    // 4. Cargar el resto de dependencias
     const { data: m } = await supabase.from("machines").select("id, name, code, coin_current, layout");
     const { data: p } = await supabase.from("products").select("id, name, unit_cost, sale_price");
     const { data: c } = await supabase.from("customers").select("id, name").eq("active", true).order("name");
@@ -64,12 +100,17 @@ const Sales = () => {
       .select("*, machines(name), products(name, unit_cost)")
       .eq("status", "pending")
       .order("consumed_at", { ascending: false });
+
     setMachines((m as any) || []);
     setProducts(p || []);
     setCustomers(c || []);
     setDebts(d || []);
   };
-  useEffect(() => { document.title = "Ventas · InventaXo"; load(); }, []);
+
+  useEffect(() => { 
+    document.title = "Ventas | InventaXo"; 
+    load(); 
+  }, []);
 
   // Realtime: refresh debts when consumptions change
   useEffect(() => {
@@ -80,6 +121,7 @@ const Sales = () => {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  
   // ===== Manual sale =====
   const saveManual = async () => {
     if (!form.machine_id || !form.product_id || !form.unit_price) return toast.error("Completa los campos");
