@@ -55,9 +55,7 @@ const Sales = () => {
 const load = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "";
-      const fetchUrl = apiUrl.endsWith('/api') 
-        ? `${apiUrl}/ventas/historial` 
-        : `${apiUrl}/api/ventas/historial`;
+      const fetchUrl = `${apiUrl}/api/ventas/historial`;
 
       console.log("1. Frontend buscando ventas en:", fetchUrl);
 
