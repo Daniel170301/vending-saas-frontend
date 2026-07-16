@@ -53,44 +53,43 @@ const Sales = () => {
   const [vForm, setVForm] = useState({ quantity: "1", unit_price: "", customer_id: "", customer_name: "", notes: "" });
 
 const load = async () => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || "";
-      const fetchUrl = `${apiUrl}/api/ventas/historial`;
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    const fetchUrl = `${apiUrl}/api/ventas/historial`;
 
-      console.log("1. Frontend buscando ventas en:", fetchUrl);
+    console.log("1. Buscando en:", fetchUrl);
 
-      const res = await fetch(fetchUrl);
-      const hwData = await res.json();
-      
-      
+    const res = await fetch(fetchUrl);
+    const hwData = await res.json();
 
-      // ¡Aquí está el filtro de seguridad!
-      // Si recibes un objeto que tiene "today" o "profit" (Dashboard), 
-      // lo ignoramos porque no es una lista de ventas.
-      if (hwData && hwData.ventas && Array.isArray(hwData.ventas)) {
-        const hwSales = hwData.ventas.map((v: any) => ({
-          id: `hw-${v.id}`,
-          sold_at: v.fecha,
-          machines: { name: v.machine_id }, 
-          products: { name: v.nombre_producto },
-          quantity: 1,
-          unit_price: Number(v.precio),
-          total: Number(v.precio),
-          source: "Yape/IoT",
-          customer_name: v.nombre_cliente 
-        }));
-        
-        hwSales.sort((a: any, b: any) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime());
-        setList(hwSales);
-      } else {
-        console.warn("⚠️ El servidor respondió pero no es la lista de ventas. Revisa salesController.js");
-        setList([]);
-      }
-    } catch (err) {
-      console.error("3. Error en el puente:", err);
+    // AQUÍ imprimimos la respuesta una vez que la variable YA EXISTE
+    console.log("2. Respuesta del servidor:", hwData);
+
+    // Verificamos que hwData tenga la propiedad 'ventas'
+    if (hwData && Array.isArray(hwData.ventas)) {
+      const hwSales = hwData.ventas.map((v: any) => ({
+        id: `hw-${v.id}`,
+        sold_at: v.fecha,
+        machines: { name: v.machine_id },
+        products: { name: v.nombre_producto },
+        quantity: 1,
+        unit_price: Number(v.precio),
+        total: Number(v.precio),
+        source: "Yape/IoT",
+        customer_name: v.nombre_cliente
+      }));
+
+      hwSales.sort((a: any, b: any) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime());
+      setList(hwSales);
+      console.log("3. Ventas procesadas:", hwSales.length);
+    } else {
+      console.warn("⚠️ La respuesta no contiene 'ventas' o es un formato inesperado.");
+      setList([]);
     }
-  };
-
+  } catch (err) {
+    console.error("❌ Error cargando ventas:", err);
+  }
+};
 
 
   // ¡IMPORTANTE! 
