@@ -54,49 +54,52 @@ const Sales = () => {
 
 const load = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL; // Esto ya trae "https://tu-url.onrender.com/api"
-
-      // 1. CARGAR VENTAS REALES (Desde tu PostgreSQL en Render)
-      // Nota: Le quitamos el /api extra para que no choque
-      const res = await fetch(`${apiUrl}/ventas/historial`); 
-      const hwData = await res.json();
+      const apiUrl = import.meta.env.VITE_API_URL || "";
       
-      if (hwData.success) {
+      // 1. URL Inteligente: Esto evita el error de "/api/api/" o que falte la ruta
+      const fetchUrl = apiUrl.includes('/api') 
+        ? `${apiUrl}/ventas/historial` 
+        : `${apiUrl}/api/ventas/historial`;
+
+      console.log("1. Frontend buscando ventas en:", fetchUrl);
+
+      // 2. Hacemos la petición al backend
+      const res = await fetch(fetchUrl);
+      const hwData = await res.json();
+
+      console.log("2. Datos recibidos con éxito:", hwData);
+
+      // 3. Transformamos los datos para que la tabla los entienda
+      if (hwData.success && hwData.ventas) {
         const hwSales = hwData.ventas.map((v: any) => ({
           id: `hw-${v.id}`,
           sold_at: v.fecha,
           machines: { name: v.machine_id }, 
           products: { name: v.nombre_producto },
           quantity: 1,
-          unit_price: v.precio,
-          total: v.precio,
+          unit_price: Number(v.precio),
+          total: Number(v.precio),
           source: "Yape/IoT",
           customer_name: v.nombre_cliente 
         }));
         
-        // Ordenamos por fecha
+        // Ordenamos las ventas de la más nueva a la más antigua
         hwSales.sort((a: any, b: any) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime());
+        
+        // ¡Actualizamos la pantalla!
         setList(hwSales);
       } else {
         setList([]);
       }
 
-      // 2. MIGRACIÓN DEL RESTO DE DATOS
-      // Como ya no usas Supabase, aquí llamaremos a tus propias rutas en el futuro.
-      // Por ahora las inicializamos vacías para que la pantalla no explote con errores rojos.
-      
-      // Ejemplo de cómo será cuando conectemos tu backend:
-      // const resMachines = await fetch(`${apiUrl}/machines`);
-      // const dataMachines = await resMachines.json();
-      // setMachines(dataMachines);
-      
+      // 4. Limpiamos las dependencias antiguas de Supabase
       setMachines([]); 
       setProducts([]);
       setCustomers([]);
       setDebts([]);
 
     } catch (err) {
-      console.error("Error cargando historial de tu backend:", err);
+      console.error("3. Error en el puente Frontend-Backend:", err);
     }
   };
 
@@ -108,14 +111,6 @@ const load = async () => {
   // de los errores de WebSocket en tu consola.
 
 
-  // Realtime: refresh debts when consumptions change
-  useEffect(() => {
-    const ch = supabase
-      .channel("sales-vc")
-      .on("postgres_changes", { event: "*", schema: "public", table: "vending_consumptions" }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, []);
 
   
   // ===== Manual sale =====
