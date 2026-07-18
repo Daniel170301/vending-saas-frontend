@@ -92,6 +92,7 @@ const Machines = () => {
   const [form, setForm] = useState({
     name: "", code: "", location: "", coin_base: "",
     brand: "", model: "", plate: "",
+    coin_enabled: false,
     coin_brand: "", coin_plate: "",
     bill_enabled: false, bill_brand: "", bill_model: "", bill_plate: "",
   });
@@ -215,6 +216,7 @@ const formattedMachines = data.map((m: any) => ({
     setForm({
       name: "", code: "", location: "", coin_base: "",
       brand: "", model: "", plate: "",
+      coin_enabled: false,
       coin_brand: "", coin_plate: "",
       bill_enabled: false, bill_brand: "", bill_model: "", bill_plate: "",
     });
@@ -228,6 +230,9 @@ const formattedMachines = data.map((m: any) => ({
       name: m.name, code: m.code, location: m.location || "", coin_base: String(m.coin_base),
       brand: m.brand || "", model: m.model || "", plate: m.plate || "",
       coin_brand: m.coin_brand || "", coin_plate: m.coin_plate || "",
+      // Si ya tiene marca o base, asumimos que tiene monedero activo:
+      coin_enabled: !!m.coin_brand || !!m.coin_plate || Number(m.coin_base) > 0, // <-- AÑADIR ESTA LÍNEA
+      
       bill_enabled: !!m.bill_enabled,
       bill_brand: m.bill_brand || "", bill_model: m.bill_model || "", bill_plate: m.bill_plate || "",
     });
@@ -249,7 +254,7 @@ const save = async () => {
         return toast.error("Error: No se detectó tu sesión. Intenta recargar la página.");
       }
 
-      const base = parseFloat(form.coin_base) || 0;
+      const base = form.coin_enabled ? (parseFloat(form.coin_base) || 0) : 0;
       
       // Armamos el paquete exactamente con los campos de tu base de datos
       const payload = {
@@ -261,8 +266,8 @@ const save = async () => {
         brand: form.brand.trim() || null,
         model: form.model.trim() || null,
         plate: form.plate.trim() || null,
-        coin_brand: form.coin_brand.trim() || null,
-        coin_plate: form.coin_plate.trim() || null,
+        coin_brand: form.coin_enabled ? (form.coin_brand.trim() || null) : null,
+        coin_plate: form.coin_enabled ? (form.coin_plate.trim() || null) : null,
         bill_enabled: !!form.bill_enabled,
         bill_brand: form.bill_enabled ? (form.bill_brand.trim() || null) : null,
         bill_model: form.bill_enabled ? (form.bill_model.trim() || null) : null,
@@ -729,47 +734,111 @@ const save = async () => {
                 </div>
               </div>
 
-              {/* Monedero */}
-              <div>
-                <h4 className="font-semibold text-sm mb-2 text-primary flex items-center gap-1"><Coins className="h-4 w-4" />Monedero</h4>
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div><Label>Marca del monedero</Label><Input value={form.coin_brand} maxLength={60} onChange={(e) => setForm({ ...form, coin_brand: e.target.value })} placeholder="Ej: NRI" /></div>
-                  <div><Label>Matrícula del monedero</Label><Input value={form.coin_plate} maxLength={60} onChange={(e) => setForm({ ...form, coin_plate: e.target.value })} placeholder="Nº de serie" /></div>
-                  <div><Label>Base en dinero</Label><Input type="number" value={form.coin_base} onChange={(e) => setForm({ ...form, coin_base: e.target.value })} placeholder="0" /></div>
-                </div>
-              </div>
+{/* Monedero */}
+<div>
+  <div className="flex items-center justify-between mb-2">
+    <h4 className="font-semibold text-sm text-primary flex items-center gap-1">
+      <Coins className="h-4 w-4" /> Monedero
+    </h4>
+    <label className="flex items-center gap-2 text-xs cursor-pointer">
+      <input
+        type="checkbox"
+        checked={form.coin_enabled}
+        onChange={(e) => setForm({ ...form, coin_enabled: e.target.checked })}
+        className="h-4 w-4 rounded accent-primary"
+      />
+      {form.coin_enabled ? "La máquina tiene monedero" : "Añadir monedero"}
+    </label>
+  </div>
+  
+  {form.coin_enabled && (
+    <div className="grid sm:grid-cols-3 gap-3">
+      <div>
+        <Label>Marca del monedero</Label>
+        <Input 
+          value={form.coin_brand} 
+          maxLength={60} 
+          onChange={(e) => setForm({ ...form, coin_brand: e.target.value })} 
+          placeholder="Ej: NRI" 
+        />
+      </div>
+      <div>
+        <Label>Matrícula del monedero</Label>
+        <Input 
+          value={form.coin_plate} 
+          maxLength={60} 
+          onChange={(e) => setForm({ ...form, coin_plate: e.target.value })} 
+          placeholder="Nº de serie" 
+        />
+      </div>
+      <div>
+        <Label>Base en dinero</Label>
+        <Input 
+          type="number" 
+          value={form.coin_base} 
+          onChange={(e) => setForm({ ...form, coin_base: e.target.value })} 
+          placeholder="0.00" 
+        />
+      </div>
+    </div>
+  )}
+</div>
 
-              {/* Billetero */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-sm text-primary">Billetero</h4>
-                  <label className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.bill_enabled}
-                      onChange={(e) => setForm({ ...form, bill_enabled: e.target.checked })}
-                      className="h-4 w-4 rounded accent-primary"
-                    />
-                    {form.bill_enabled ? "La máquina tiene billetero" : "Sin billetero"}
-                  </label>
-                </div>
-                {form.bill_enabled && (
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    <div><Label>Marca</Label><Input value={form.bill_brand} maxLength={60} onChange={(e) => setForm({ ...form, bill_brand: e.target.value })} placeholder="Ej: ICT" /></div>
-                    <div><Label>Modelo</Label><Input value={form.bill_model} maxLength={60} onChange={(e) => setForm({ ...form, bill_model: e.target.value })} placeholder="Ej: BL-700" /></div>
-                    <div><Label>Matrícula / Serie</Label><Input value={form.bill_plate} maxLength={60} onChange={(e) => setForm({ ...form, bill_plate: e.target.value })} placeholder="Nº de serie" /></div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-
-
+{/* Billetero */}
+<div>
+  <div className="flex items-center justify-between mb-2">
+    <h4 className="font-semibold text-sm text-primary">Billetero</h4>
+    <label className="flex items-center gap-2 text-xs cursor-pointer">
+      <input
+        type="checkbox"
+        checked={form.bill_enabled}
+        onChange={(e) => setForm({ ...form, bill_enabled: e.target.checked })}
+        className="h-4 w-4 rounded accent-primary"
+      />
+      {/* AQUÍ SE CAMBIÓ "Sin billetero" por "Añadir billetero" */}
+      {form.bill_enabled ? "La máquina tiene billetero" : "Añadir billetero"}
+    </label>
+  </div>
+  
+  {form.bill_enabled && (
+    <div className="grid sm:grid-cols-3 gap-3">
+      <div>
+        <Label>Marca</Label>
+        <Input 
+          value={form.bill_brand} 
+          maxLength={60} 
+          onChange={(e) => setForm({ ...form, bill_brand: e.target.value })} 
+          placeholder="Ej: ICT" 
+        />
+      </div>
+      <div>
+        <Label>Modelo</Label>
+        <Input 
+          value={form.bill_model} 
+          maxLength={60} 
+          onChange={(e) => setForm({ ...form, bill_model: e.target.value })} 
+          placeholder="Ej: BL-700" 
+        />
+      </div>
+      <div>
+        <Label>Matrícula / Serie</Label>
+        <Input 
+          value={form.bill_plate} 
+          maxLength={60} 
+          onChange={(e) => setForm({ ...form, bill_plate: e.target.value })} 
+          placeholder="Nº de serie" 
+        />
+      </div>
+    </div>
+  )}
+</div>
+</div>
+          )} {/* <- ESTOS SON LOS CIERRES QUE FALTABAN PARA EL CONTENEDOR Y EL TAB */}
+            
+          
           <Button variant="hero" className="w-full mt-4" onClick={save}>Guardar máquina</Button>
         </DialogContent>
-      </Dialog>
-
+        </Dialog>
       {/* Visor de máquina (solo lectura) */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
