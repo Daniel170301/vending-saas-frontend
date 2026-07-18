@@ -904,55 +904,50 @@ const save = async () => {
                     )}
                   </Card>
                 </div>
-{/* --- INICIO DEL NUEVO DISEÑO --- */}
-<div className="space-y-6 mt-6">
-  {[1, 2, 3, 4, 5, 6].map((numBandeja) => (
-    <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5">
-      <div className="flex justify-between items-center mb-4 pb-2 border-b">
-        <h3 className="font-bold text-lg text-primary-deep">Bandeja {numBandeja}</h3>
-        <span className="text-sm text-muted-foreground">#{numBandeja} · 6 resortes</span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        {[0, 1, 2, 3, 4, 5].map((posicion) => {
-          const codigoMotor = `${numBandeja}${posicion}`; 
-          
-          // Usamos la variable exclusiva del modal que creamos antes
-          const producto = productosModal.find((p) => p.codigo_motor === codigoMotor);
+  {/* --- INICIO DEL NUEVO DISEÑO --- */}
+  <div className="space-y-6 mt-6">
+    {[1, 2, 3, 4, 5, 6].map((numBandeja) => (
+      <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5">
+        <div className="flex justify-between items-center mb-4 pb-2 border-b">
+          <h3 className="font-bold text-lg text-primary-deep">Bandeja {numBandeja}</h3>
+          <span className="text-sm text-muted-foreground">#{numBandeja} · 6 resortes</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          {[0, 1, 2, 3, 4, 5].map((posicion) => {
+            const codigoMotor = `${numBandeja}${posicion}`; 
+            
+            // Usamos la variable exclusiva del modal que creamos antes
+            const producto = productosModal.find((p) => p.codigo_motor === codigoMotor);
 
-          return (
-            <div 
-              key={codigoMotor} 
-              className="border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative hover:bg-accent/50 transition-colors"
-            >
-              <span className="absolute top-2 text-xs font-bold text-emerald-600">
-                R{codigoMotor}
-              </span>
-              {producto ? (
-                <div className="flex flex-col items-center mt-4 w-full text-center">
-                  <span className="text-xs font-semibold line-clamp-2 leading-tight">
-                    {producto.nombre_producto}
-                  </span>
-                  <span className="text-sm font-bold text-primary mt-1">
-                    S/ {Number(producto.precio).toFixed(2)}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground mt-1 bg-muted px-2 py-0.5 rounded-full">
-                    Stock: {producto.stock}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center mt-4">
-                  <div className="h-8 w-8 rounded border-2 border-dashed border-gray-300 mb-1"></div>
-                  <span className="text-[11px] text-muted-foreground">Vacío</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <div 
+                key={codigoMotor} 
+                className="border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative hover:bg-accent/50 transition-colors"
+              >
+                <span className="absolute top-2 text-xs font-bold text-emerald-600">
+                  R{codigoMotor}
+                </span>
+    {/* Input editable para la Capacidad */}
+    <div className="flex flex-col items-center w-full">
+      <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider mb-1">
+        Capacidad
+      </span>
+      <input
+        type="number"
+        min="1"
+        className="w-16 h-8 text-center text-lg font-bold bg-transparent border-b-2 border-gray-300 focus:border-primary focus:outline-none"
+        defaultValue={10} /* Aquí pondremos el valor real de la capacidad */
+      />
     </div>
-  ))}
-</div>
-{/* --- FIN DEL NUEVO DISEÑO --- */}
+  </div>
+              
+            );
+          })}
+        </div>
+      </div>
+    ))}
+  </div>
+  {/* --- FIN DEL NUEVO DISEÑO --- */}
                 <div className="text-[11px] text-muted-foreground flex items-center gap-1">
                   <Package className="h-3 w-3" /> {assigned}/{slots} resortes con producto asignado
                 </div>
