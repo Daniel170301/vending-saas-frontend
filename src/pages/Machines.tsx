@@ -938,47 +938,54 @@ const save = async () => {
                   min="1"
                   className="w-16 h-8 text-center text-lg font-bold bg-transparent border-b-2 border-gray-300 focus:border-primary focus:outline-none"
                   
-                  // 1. LEER EL VALOR: Usamos ?? para evitar que el 0 se convierta en 10 al borrar
-                  value={viewing?.layout?.[codigoMotor]?.capacidad ?? 10} 
                   
-                  // 2. ACTUALIZAR PANTALLA: Actualizamos el estado visual inmediatamente al escribir
-                   onBlur={async () => {
-  try {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    
-    // Obtenemos los datos actuales de ese motor específico en el layout
-    const motorData = viewing?.layout?.[codigoMotor] || {};
-    
-    // Replicamos el payload exacto que usa tu Planograma
-    const payload = {
-      machine_id: viewing.id, // O "D4-8A-FC-A5-26-A8" si lo tienes fijo como en el PDF
-      codigo_motor: codigoMotor,
-      nombre_producto: motorData.nombre_producto || "",
-      precio: parseFloat(motorData.precio) || 0,
-      stock: parseInt(motorData.stock) || 0,
-      capacidad: parseInt(motorData.capacidad) || 10
-    };
+                  // 1. LEER EL VALOR: Leemos directamente del producto (igual que el planograma), no del layout.
+                  defaultValue={producto?.capacidad ?? 10} 
+                  
+                  // 2. GUARDAR EN BD: Al hacer clic fuera del cuadradito, enviamos el dato a PostgreSQL.
+    onBlur={async (e) => {
+      const nuevaCapacidad = parseInt(e.target.value) || 10;
+      
+      // Si la capacidad es la misma que ya estaba, no hacemos peticiones innecesarias
+      if (nuevaCapacidad === (producto?.capacidad ?? 10)) return;
 
-    const res = await fetch(`${apiUrl}/inventario/actualizar`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL;
+        
+        // Armamos el paquete de datos preservando la info del producto existente
+        const payload = {
+          machine_id: viewing.id, // O "D4-8A-FC-A5-26-A8" si es fija por ahora
+          codigo_motor: codigoMotor,
+          nombre_producto: producto?.nombre_producto || "",
+                  precio: Number(producto?.precio) || 0,
+                  stock: Number(producto?.stock) || 0,
+          capacidad: nuevaCapacidad
+        };
 
-    const data = await res.json();
+        const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
 
-    if (data.success) {
-      toast.success(`Capacidad actualizada en el resorte ${codigoMotor}`);
-    } else {
-      toast.error(data.message || "Error al actualizar la capacidad");
-    }
-  } catch (error) {
-    console.error("Error guardando capacidad:", error);
-    toast.error("Error conectando con el servidor backend");
-  }
-}}
+        const data = await res.json();
+
+        if (data.success) {
+          toast.success(`Capacidad de R${codigoMotor} guardada en servidor`);
+          
+          // NOTA: Si tienes una función para recargar los datos del modal en Machines.tsx
+          // (algo como loadModal() o fetchInventario()), llámala aquí para que 
+          // los datos se refresquen visualmente de inmediato.
+        } else {
+          toast.error(data.message || "Error al actualizar la capacidad");
+        }
+      } catch (error) {
+        console.error("Error guardando capacidad:", error);
+        toast.error("Error conectando con el servidor backend");
+      }
+    }}
                 />
               </div>
             </div>
