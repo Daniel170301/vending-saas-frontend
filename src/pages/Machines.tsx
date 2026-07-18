@@ -921,7 +921,7 @@ const save = async () => {
 
           return (
             <div 
-              key={codigoMotor} 
+              key={`${codigoMotor}-${producto?.capacidad ?? 10}`}
               className="border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative hover:bg-accent/50 transition-colors"
             >
               <span className="absolute top-2 text-xs font-bold text-emerald-600">
