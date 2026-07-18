@@ -929,19 +929,24 @@ const save = async () => {
               </span>
               
               {/* Input editable para la Capacidad */}
-              <div className="flex flex-col items-center w-full">
-                <span className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider mb-1">
+              <div className="flex flex-col items-center justify-center w-full mt-2">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
                   Capacidad
                 </span>
                 <input
                   type="number"
                   min="1"
-                  className="w-16 h-8 text-center text-lg font-bold bg-transparent border-b-2 border-gray-300 focus:border-primary focus:outline-none"
+                  className="w-14 h-9 text-center text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   
                   
                   // 1. LEER EL VALOR: Leemos directamente del producto (igual que el planograma), no del layout.
                   defaultValue={producto?.capacidad ?? 10} 
-                  
+                  // GUARDAR AL PRESIONAR ENTER
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') {
+        e.currentTarget.blur(); // Esto quita el foco y dispara el onBlur automáticamente
+      }
+    }}
                   // 2. GUARDAR EN BD: Al hacer clic fuera del cuadradito, enviamos el dato a PostgreSQL.
     onBlur={async (e) => {
       const nuevaCapacidad = parseInt(e.target.value) || 10;
