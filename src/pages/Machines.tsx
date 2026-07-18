@@ -942,33 +942,35 @@ const save = async () => {
                   value={viewing?.layout?.[codigoMotor]?.capacidad ?? 10} 
                   
                   // 2. ACTUALIZAR PANTALLA: Actualizamos el estado visual inmediatamente al escribir
-                  onChange={(e) => {
-                    // Permitimos que el campo esté vacío temporalmente mientras se escribe
-                    const nuevaCapacidad = e.target.value === "" ? "" : parseInt(e.target.value);
-                    
-                    // Agregamos ": any" aquí para saltar la restricción estricta de TypeScript
-                    const nuevoLayout: any = { ...(viewing?.layout || {}) };
-                    
-                    nuevoLayout[codigoMotor] = { 
-                      ...(nuevoLayout[codigoMotor] || {}), 
-                      capacidad: nuevaCapacidad 
-                    };
+                    onBlur={async () => {
+                    try {
+                      const apiUrl = import.meta.env.VITE_API_URL;
+                      
+                      // Preparamos los datos a enviar
+                      const payload = {
+                        machine_id: viewing.id,
+                        layout: viewing.layout
+                      };
 
-                    setViewing({ ...viewing, layout: nuevoLayout });
-                  }}
+                      // Hacemos la petición a tu backend en Render (ajusta la ruta '/maquinas/actualizar' si es distinta)
+                      const res = await fetch(`${apiUrl}/maquinas/actualizar-layout`, {
+                        method: 'PUT',
+                        headers: {
+                          'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                      });
 
-                  // 3. GUARDAR EN BD: Solo guardamos cuando el usuario hace clic fuera del input
-                  onBlur={async () => {
-                    const { error } = await supabase
-                      .from("machines")
-                      .update({ layout: viewing.layout })
-                      .eq("id", viewing.id);
+                      const data = await res.json();
 
-                    if (error) {
-                      toast.error("Error al guardar la capacidad");
-                    } else {
-                      // Opcional: Mostrar un pequeño mensaje de éxito si lo deseas
-                      // toast.success(`Capacidad de R${codigoMotor} guardada`);
+                      if (data.success) {
+                        toast.success("¡Capacidad de la máquina guardada!");
+                      } else {
+                        toast.error(data.message || "Error al guardar la capacidad en la máquina");
+                      }
+                    } catch (error) {
+                      console.error("Error guardando layout de máquina:", error);
+                      toast.error("Error conectando con el servidor backend");
                     }
                   }}
                 />
