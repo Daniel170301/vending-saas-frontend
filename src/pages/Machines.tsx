@@ -13,7 +13,7 @@ import {
 import { fmtMoney } from "@/lib/format";
 import {
   Boxes, Coins, MapPin, Pencil, Plus, Trash2, LayoutGrid, Minus, Package, Eye,
-  FileSpreadsheet, FileText,
+  FileSpreadsheet, FileText,Banknote
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -787,6 +787,9 @@ const save = async () => {
 {/* Billetero */}
 <div>
   <div className="flex items-center justify-between mb-2">
+    <h4 className="font-semibold text-sm text-primary flex items-center gap-1">
+      <Banknote className="h-4 w-4" /> Billetero
+    </h4>
     <h4 className="font-semibold text-sm text-primary">Billetero</h4>
     <label className="flex items-center gap-2 text-xs cursor-pointer">
       <input
