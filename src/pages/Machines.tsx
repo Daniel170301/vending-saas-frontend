@@ -942,37 +942,43 @@ const save = async () => {
                   value={viewing?.layout?.[codigoMotor]?.capacidad ?? 10} 
                   
                   // 2. ACTUALIZAR PANTALLA: Actualizamos el estado visual inmediatamente al escribir
-                    onBlur={async () => {
-                    try {
-                      const apiUrl = import.meta.env.VITE_API_URL;
-                      
-                      // Preparamos los datos a enviar
-                      const payload = {
-                        machine_id: viewing.id,
-                        layout: viewing.layout
-                      };
+                   onBlur={async () => {
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    
+    // Obtenemos los datos actuales de ese motor específico en el layout
+    const motorData = viewing?.layout?.[codigoMotor] || {};
+    
+    // Replicamos el payload exacto que usa tu Planograma
+    const payload = {
+      machine_id: viewing.id, // O "D4-8A-FC-A5-26-A8" si lo tienes fijo como en el PDF
+      codigo_motor: codigoMotor,
+      nombre_producto: motorData.nombre_producto || "",
+      precio: parseFloat(motorData.precio) || 0,
+      stock: parseInt(motorData.stock) || 0,
+      capacidad: parseInt(motorData.capacidad) || 10
+    };
 
-                      // Hacemos la petición a tu backend en Render (ajusta la ruta '/maquinas/actualizar' si es distinta)
-                      const res = await fetch(`${apiUrl}/maquinas/actualizar-layout`, {
-                        method: 'PUT',
-                        headers: {
-                          'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                      });
+    const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
-                      const data = await res.json();
+    const data = await res.json();
 
-                      if (data.success) {
-                        toast.success("¡Capacidad de la máquina guardada!");
-                      } else {
-                        toast.error(data.message || "Error al guardar la capacidad en la máquina");
-                      }
-                    } catch (error) {
-                      console.error("Error guardando layout de máquina:", error);
-                      toast.error("Error conectando con el servidor backend");
-                    }
-                  }}
+    if (data.success) {
+      toast.success(`Capacidad actualizada en el resorte ${codigoMotor}`);
+    } else {
+      toast.error(data.message || "Error al actualizar la capacidad");
+    }
+  } catch (error) {
+    console.error("Error guardando capacidad:", error);
+    toast.error("Error conectando con el servidor backend");
+  }
+}}
                 />
               </div>
             </div>
