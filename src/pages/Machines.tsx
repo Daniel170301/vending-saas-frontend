@@ -948,24 +948,33 @@ const save = async () => {
       }
     }}
                   // 2. GUARDAR EN BD: Al hacer clic fuera del cuadradito, enviamos el dato a PostgreSQL.
-   onBlur={async (e) => {
-  // Tomamos el valor real escrito por el usuario en ese instante
+onBlur={async (e) => {
   const nuevaCapacidad = parseInt(e.target.value, 10);
-  
   if (isNaN(nuevaCapacidad) || nuevaCapacidad < 1) return;
+
+  // 🔍 1. RASTREADORES EN LA CONSOLA DEL NAVEGADOR
+  console.log("=== DESBUGUEANDO CAPACIDAD ===");
+  console.log("1. Objeto 'viewing' completo de la máquina:", viewing);
+  
+  // Forzamos a buscar la MAC de todas las formas posibles usando 'as any' para evitar líneas rojas
+  const macDetectada = (viewing as any).code || (viewing as any).machine_id || (viewing as any).id;
+  console.log("2. MAC que se va a enviar al servidor:", macDetectada);
+  console.log("3. Código del motor actual:", codigoMotor);
 
   try {
     const apiUrl = import.meta.env.VITE_API_URL;
     
-    // Enviamos el payload asegurándonos de mapear el tipado correcto
+    // Armamos el paquete de datos con la MAC detectada
     const payload = {
-      machine_id: viewing.code || viewing.id,
+      machine_id: macDetectada, 
       codigo_motor: codigoMotor,
       nombre_producto: producto?.nombre_producto || "",
       precio: Number(producto?.precio) || 0,
       stock: Number(producto?.stock) || 0,
-      capacidad: nuevaCapacidad // El nuevo número que pusiste
+      capacidad: nuevaCapacidad
     };
+
+    console.log("4. Payload final enviado (PUT):", payload);
 
     const res = await fetch(`${apiUrl}/inventario/actualizar`, {
       method: 'PUT',
@@ -976,12 +985,10 @@ const save = async () => {
     });
 
     const data = await res.json();
+    console.log("5. Respuesta que devolvió el Servidor:", data);
 
     if (data.success) {
-      toast.success(`Capacidad de R${codigoMotor} guardada en servidor`);
-      
-      // OBLIGATORIO: Actualiza el estado local de la máquina si tienes la función a la mano.
-      // Si mutas directamente el objeto 'producto' local para engañar al estado antes del F5:
+      toast.success(`Capacidad de R${codigoMotor} guardada`);
       if (producto) {
         producto.capacidad = nuevaCapacidad;
       }
@@ -989,7 +996,7 @@ const save = async () => {
       toast.error(data.message || "Error al actualizar la capacidad");
     }
   } catch (error) {
-    console.error("Error guardando capacidad:", error);
+    console.error("❌ Error en la petición fetch:", error);
     toast.error("Error conectando con el servidor");
   }
 }}
