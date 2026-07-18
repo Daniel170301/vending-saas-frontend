@@ -788,8 +788,9 @@ const save = async () => {
 <div>
   <div className="flex items-center justify-between mb-2">
     <h4 className="font-semibold text-sm text-primary flex items-center gap-1">
+      <Banknote className="h-4 w-4" /> Billetero
     </h4>
-    <h4 className="font-semibold text-sm text-primary">Billetero</h4>
+    
     <label className="flex items-center gap-2 text-xs cursor-pointer">
       <input
         type="checkbox"
