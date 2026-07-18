@@ -914,98 +914,120 @@ const save = async () => {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[0, 1, 2, 3, 4, 5].map((posicion) => {
-          const codigoMotor = `${numBandeja}${posicion}`; 
-          
-          // Usamos la variable exclusiva del modal que creamos antes
-          const producto = productosModal.find((p) => p.codigo_motor === codigoMotor);
+  const codigoMotor = `${numBandeja}${posicion}`;
+  // Usamos la variable exclusiva del modal que creamos antes
+  const producto = productosModal.find((p) => p.codigo_motor === codigoMotor);
 
-          return (
-            <div 
-              key={`${codigoMotor}-${producto?.capacidad ?? 10}`}
-              className="border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative hover:bg-accent/50 transition-colors"
-            >
-              <span className="absolute top-2 text-xs font-bold text-emerald-600">
-                R{codigoMotor}
-              </span>
+  return (
+    <div
+      key={`${codigoMotor}-${producto?.capacidad ?? 10}`}
+      className="border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative hover:bg-accent/50 transition-colors"
+    >
+      <span className="absolute top-2 text-xs font-bold text-emerald-600">
+        {codigoMotor}
+      </span>
+
+      {/* Input editable para la Capacidad */}
+      <div className="flex flex-col items-center justify-center w-full mt-2">
+        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+          Capacidad
+        </span>
+
+        {/* INICIO DEL INPUT Y BOTÓN CORREGIDOS */}
+        <div className="flex items-center justify-center gap-1.5 mt-1">
+          <input
+            id={`cap-input-${codigoMotor}`}
+            key={`${codigoMotor}-${producto?.capacidad ?? 10}`}
+            type="number"
+            min="1"
+            className="w-14 h-9 text-center text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            defaultValue={producto?.capacidad ?? 10}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                const btn = document.getElementById(`btn-save-${codigoMotor}`);
+                btn?.click();
+                e.currentTarget.blur();
+              }
+            }}
+          />
+          <button
+            id={`btn-save-${codigoMotor}`}
+            type="button"
+            title="Guardar capacidad"
+            className="flex items-center justify-center w-9 h-9 text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            onClick={async () => {
+              const inputEl = document.getElementById(`cap-input-${codigoMotor}`) as HTMLInputElement;
+              if (!inputEl) return;
+              const nuevaCapacidad = parseInt(inputEl.value, 10);
+              if (isNaN(nuevaCapacidad) || nuevaCapacidad < 1) return;
+
+              const macDetectada = (viewing as any).code || (viewing as any).machine_id || (viewing as any).id;
               
-              {/* Input editable para la Capacidad */}
-              <div className="flex flex-col items-center justify-center w-full mt-2">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                  Capacidad
-                </span>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-14 h-9 text-center text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  
-                  
-                  // 1. LEER EL VALOR: Leemos directamente del producto (igual que el planograma), no del layout.
-                  defaultValue={producto?.capacidad ?? 10} 
-                  // GUARDAR AL PRESIONAR ENTER
-    onKeyDown={(e) => {
-      if (e.key === 'Enter') {
-        e.currentTarget.blur(); // Esto quita el foco y dispara el onBlur automáticamente
-      }
-    }}
-                  // 2. GUARDAR EN BD: Al hacer clic fuera del cuadradito, enviamos el dato a PostgreSQL.
-onBlur={async (e) => {
-  const nuevaCapacidad = parseInt(e.target.value, 10);
-  if (isNaN(nuevaCapacidad) || nuevaCapacidad < 1) return;
+              try {
+                const payload = {
+                  machine_id: macDetectada,
+                  codigo_motor: codigoMotor,
+                  nombre_producto: producto?.nombre_producto || "",
+                  precio: Number(producto?.precio) || 0,
+                  stock: Number(producto?.stock) || 0,
+                  capacidad: nuevaCapacidad
+                };
 
-
-  // Forzamos a buscar la MAC de todas las formas posibles usando 'as any' para evitar líneas rojas
-  const macDetectada = (viewing as any).code || (viewing as any).machine_id || (viewing as any).id;
-
-
-  try {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    
-    // Armamos el paquete de datos con la MAC detectada
-    const payload = {
-      machine_id: macDetectada, 
-      codigo_motor: codigoMotor,
-      nombre_producto: producto?.nombre_producto || "",
-      precio: Number(producto?.precio) || 0,
-      stock: Number(producto?.stock) || 0,
-      capacidad: nuevaCapacidad
-    };
-
-    console.log("4. Payload final enviado (PUT):", payload);
-
-    const res = await fetch(`${apiUrl}/inventario/actualizar`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-    console.log("5. Respuesta que devolvió el Servidor:", data);
-
-    if (data.success) {
-      toast.success(`Capacidad de R${codigoMotor} guardada`);
-      if (producto) {
-        producto.capacidad = nuevaCapacidad;
-      }
-    } else {
-      toast.error(data.message || "Error al actualizar la capacidad");
-    }
-  } catch (error) {
-    console.error("❌ Error en la petición fetch:", error);
-    toast.error("Error conectando con el servidor");
-  }
-}}
-                />
-              </div>
-            </div>
-          );
-        })}
+                console.log("Payload final enviado (PUT):", payload);
+                const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                  toast.success(`Capacidad de ${codigoMotor} guardada`);
+                  setProductosModal((prev) =>
+                    prev.map((p) =>
+                      p.codigo_motor === codigoMotor ? { ...p, capacidad: nuevaCapacidad } : p
+                    )
+                  );
+                } else {
+                  toast.error(data.message || "Error al actualizar la capacidad");
+                }
+              } catch (error) {
+                console.error("Error en la petición fetch:", error);
+                toast.error("Error conectando con el servidor");
+              }
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M15.2 3H19a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.8" />
+              <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+              <path d="M7 3v4a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V3" />
+            </svg>
+          </button>
+        </div>
+        {/* FIN DEL INPUT Y BOTÓN CORREGIDOS */}
       </div>
     </div>
-  ))}
-</div>
-{/* --- FIN DEL NUEVO DISEÑO --- */}
+  );
+})}
+          </div>
+        </div>
+      ))}
+    </div>
+    {/* --- FIN DEL NUEVO DISEÑO --- */}
+
                 <div className="text-[11px] text-muted-foreground flex items-center gap-1">
                   <Package className="h-3 w-3" /> {assigned}/{slots} resortes con producto asignado
                 </div>
