@@ -959,7 +959,7 @@ const save = async () => {
     
     // Enviamos el payload asegurándonos de mapear el tipado correcto
     const payload = {
-      machine_id: viewing.id, 
+      machine_id:"D4-8A-FC-A5-26-A8", 
       codigo_motor: codigoMotor,
       nombre_producto: producto?.nombre_producto || "",
       precio: Number(producto?.precio) || 0,
