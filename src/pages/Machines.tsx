@@ -848,7 +848,7 @@ const save = async () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5 text-primary" />
-              
+              {viewing?.name}
             </DialogTitle>
           </DialogHeader>
           {viewing && (() => {
@@ -876,15 +876,14 @@ const save = async () => {
                 )}
                 <div className="grid sm:grid-cols-3 gap-2 text-xs">
                   <Card className="p-2">
-                    <p className="text-muted-foreground text-[10px] mb-0.5">Máquina</p>
+                    <p className="text-muted-foreground text-[10px] mb-1">Máquina</p>
 
                   <div className="mb-1">
                     <Badge variant="secondary" className="text-[10px] font-mono">
                       {viewing.code}
-                    </Badge>S
+                    </Badge>
                   </div>
 
-                    <p className="font-semibold">{[viewing.brand, viewing.model].filter(Boolean).join(" · ") || "—"}</p>
                     {viewing.plate && <p className="text-[10px] text-muted-foreground">S/N: {viewing.plate}</p>}
                   </Card>
                   <Card className="p-2">
