@@ -70,6 +70,7 @@ const Products = () => {
 
   // Capturamos la MAC dinámica de la URL
 const macActual = searchParams.get("mac");
+const [machinesList, setMachinesList] = useState([]); // Lista de máquinas para el selector
   // Agregamos "machine_output" a los modos posibles
 const mode: "sale" | "expense" | "browse" | "machine_output" = 
   action === "sale" ? "sale" : 
@@ -105,10 +106,32 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
   const [checkoutMode, setCheckoutMode] = useState<"sale" | "expense">("sale");
   const [meta, setMeta] = useState({ concept: "", customer: "", payment_method: "Efectivo", employee_id: "" });
 
-const load = async () => {
+
+// 1. Función para traer tus máquinas desde PostgreSQL
+const loadMachines = async () => {
   try {
     const apiUrl = import.meta.env.VITE_API_URL;
-    const res = await fetch(`${apiUrl}/inventario/D4-8A-FC-A5-26-A8`); 
+    // Asumimos que tienes una ruta /api/machines en tu backend (app.js)
+    const res = await fetch(`${apiUrl}/api/machines`);
+    const data = await res.json();
+    if (data.success || data.maquinas) {
+      setMachinesList(data.maquinas || data.data || []);
+    }
+  } catch (error) {
+    console.error("Error al cargar máquinas:", error);
+  }
+};
+
+const load = async () => {
+  // Si no hay máquina seleccionada, limpiamos el planograma y no hacemos fetch
+  if (!macActual) {
+    setList([]);
+    return;
+  }
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    // Ahora le pasamos la MAC dinámica a tu backend
+    const res = await fetch(`${apiUrl}/api/inventario/${macActual}`);
     const data = await res.json();
     setList(data.inventario || []);
   } catch (err) {
@@ -138,6 +161,10 @@ const load = async () => {
     }
   };
   useEffect(() => { document.title = "Planograma · InventaXo"; load(); }, []);
+useEffect(() => {
+  load();
+}, [macActual]); // Se ejecuta cada vez que seleccionas una máquina distinta
+
 
   const parentCats = categories.filter((c) => !c.parent_id);
   const selectedParent = parentCats.find((c) => c.name === form.category);
@@ -512,23 +539,39 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
     <div className="container py-8 pb-32">
       <PageHeader title={headerTitle} description={headerDesc} actions={
         mode === "browse" ? (
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" title="Descargar inventario">
-                  <Download className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={exportExcel}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />Excel (.xlsx)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={exportPDF}>
-                  <FileText className="h-4 w-4 mr-2" />PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-           
+          <div className="flex gap-2 items-center">
+            {/* NUEVO SELECTOR DE MÁQUINAS */}
+        <Select 
+          value={macActual} 
+          onValueChange={(val) => setSearchParams({ action: action || "", mac: val })}
+        >
+          <SelectTrigger className="w-[250px] bg-white">
+            <SelectValue placeholder="Selecciona una máquina..." />
+          </SelectTrigger>
+          <SelectContent>
+            {machinesList.map((m) => (
+              <SelectItem key={m.machine_id} value={m.machine_id}>
+                {m.name || m.machine_id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {/* Tus botones de exportar que ya tenías */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" title="Descargar inventario">
+              <Download className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={exportExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />Excel
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportPDF}>
+              <FileText className="h-4 w-4 mr-2" />PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>      
           </div>
         ) : (
           <Button variant="outline" size="sm" onClick={exitMode}>
