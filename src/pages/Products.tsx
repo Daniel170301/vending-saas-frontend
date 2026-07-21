@@ -67,6 +67,9 @@ const Products = () => {
   const action = searchParams.get("action"); // "sale" | "expense" | null
 
   const slotTarget = searchParams.get("slot"); // Leemos a qué resorte irá
+
+  // Capturamos la MAC dinámica de la URL
+const macActual = searchParams.get("mac");
   // Agregamos "machine_output" a los modos posibles
 const mode: "sale" | "expense" | "browse" | "machine_output" = 
   action === "sale" ? "sale" : 
@@ -126,9 +129,12 @@ const load = async () => {
       });
       setOpen(true);
     } else {
+      if (!macActual) {
+      return toast.error("No hay una máquina seleccionada");
+    }
      // Si está vacío, derivamos a la vista de inventario en modo "salida"
     // Pasamos el slot por parámetro para recordarlo
-    setSearchParams({ action: "machine_output", slot: codigoMotor });
+    navigate(`/app/inventory?action=machine_output&slot=${codigoMotor}&mac=${macActual}`);
     }
   };
   useEffect(() => { document.title = "Planograma · InventaXo"; load(); }, []);
