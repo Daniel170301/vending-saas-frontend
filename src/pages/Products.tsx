@@ -110,18 +110,21 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
 // 1. Función para traer tus máquinas desde PostgreSQL
 const loadMachines = async () => {
   try {
+    // 1. Obtenemos el usuario de tu sesión actual
+    const storedUser = localStorage.getItem("user");
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    const userEmail = user?.email || "desconocido"; // Sacamos el email
+
     const apiUrl = import.meta.env.VITE_API_URL;
-    const res = await fetch(`${apiUrl}/api/machines`);
+    
+    // 2. Le agregamos "?user=tu_correo" al final de la URL
+    const res = await fetch(`${apiUrl}/api/machines?user=${userEmail}`);
     const data = await res.json();
     
-    // Imprimimos en consola para ver qué responde tu base de datos
-    console.log("Respuesta de máquinas:", data); 
-
-    // Hacemos que acepte cualquier formato que envíe tu backend
     if (Array.isArray(data)) {
       setMachinesList(data);
     } else {
-      setMachinesList(data.maquinas || data.data || data.rows || []);
+      setMachinesList(data.maquinas || data.data || []);
     }
   } catch (error) {
     console.error("Error al cargar máquinas:", error);
