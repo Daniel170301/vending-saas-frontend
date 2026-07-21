@@ -133,19 +133,27 @@ const loadMachines = async () => {
 };
 
 const load = async () => {
-  // Si no hay máquina seleccionada, limpiamos el planograma y no hacemos fetch
   if (!macActual) {
     setList([]);
     return;
   }
+  
   try {
     const apiUrl = import.meta.env.VITE_API_URL;
-    // Ahora le pasamos la MAC dinámica a tu backend
-    const res = await fetch(`${apiUrl}/inventario/${macActual}`);
+    const res = await fetch(`${apiUrl}/api/inventario/${macActual}`);
     const data = await res.json();
-    setList(data.inventario || []);
+    
+    // 1. Imprimimos para ver qué está mandando el backend realmente
+    console.log("Inventario recibido para esta MAC:", data); 
+
+    // 2. Aceptamos el formato directo (arreglo) o el formato con objeto
+    if (Array.isArray(data)) {
+      setList(data);
+    } else {
+      setList(data.inventario || data.data || []);
+    }
   } catch (err) {
-    toast.error("Error al cargar inventario desde tu servidor");
+    // console.error(err);
   }
 };
 // Función que se ejecuta al hacer clic en cualquier resorte
