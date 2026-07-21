@@ -143,17 +143,17 @@ const load = async () => {
     const res = await fetch(`${apiUrl}/api/inventario/${macActual}`);
     const data = await res.json();
     
-    // 1. Imprimimos para ver qué está mandando el backend realmente
-    console.log("Inventario recibido para esta MAC:", data); 
+    // Imprimimos el inventario para ver qué llega
+    console.log("Inventario recibido:", data);
 
-    // 2. Aceptamos el formato directo (arreglo) o el formato con objeto
+    // Guardamos la lista sin importar el formato en que venga
     if (Array.isArray(data)) {
       setList(data);
     } else {
-      setList(data.inventario || data.data || []);
+      setList(data.inventario || data.data || data.rows || []);
     }
   } catch (err) {
-    // console.error(err);
+    console.error("Error cargando inventario:", err);
   }
 };
 // Función que se ejecuta al hacer clic en cualquier resorte
@@ -660,7 +660,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 {[0, 1, 2, 3, 4, 5].map((posicion) => {
                   // Genera: 10, 11, 12... 20, 21...
-                  const codigoMotor = `${numBandeja}${posicion}`;
+                  const codigoMotor = `R${numBandeja}${posicion}`;
                   
                   // OJO: Asegúrate de usar 'list' o 'filtered' según como tengas declarado tu estado de productos arriba
                   const producto = list.find((p) => p.codigo_motor === codigoMotor);
