@@ -65,7 +65,13 @@ const Products = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const action = searchParams.get("action"); // "sale" | "expense" | null
-  const mode: "sale" | "expense" | "browse" = action === "sale" ? "sale" : action === "expense" ? "expense" : "browse";
+
+  const slotTarget = searchParams.get("slot"); // Leemos a qué resorte irá
+  // Agregamos "machine_output" a los modos posibles
+const mode: "sale" | "expense" | "browse" | "machine_output" = 
+  action === "sale" ? "sale" : 
+  action === "expense" ? "expense" : 
+  action === "machine_output" ? "machine_output" : "browse";
 
   const [list, setList] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -82,10 +88,10 @@ const Products = () => {
   const [processing, setProcessing] = useState(false);
 
   // Expense dialog
-  const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Product | null; qty: string; cost: string }>({
-    open: false, product: null, qty: "1", cost: "",
+  const [machineOutputDialog, setMachineOutputDialog] = useState<{ open: boolean; product: Product | null; qty: string; cost: string }>({
+    open: false, product: null, qty: "1", sale_price: "",
   });
-
+  
   // Employees + checkout dialog (sale & expense)
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -104,7 +110,7 @@ const load = async () => {
 };
 // Función que se ejecuta al hacer clic en cualquier resorte
   const handleSlotClick = (codigoMotor, productoExistente) => {
-    if (productoExistente) {
+    if (productoExistente) {  
       // Si ya hay una galleta/gaseosa ahí, cargamos sus datos para editar
       setForm({
         ...emptyForm,
@@ -114,14 +120,12 @@ const load = async () => {
         capacidad: productoExistente.capacidad ? productoExistente.capacidad.toString() : "10",
         codigo_motor: codigoMotor, // Memoria de qué resorte tocaste
       });
+      setOpen(true);
     } else {
-      // Si está vacío, limpiamos el formulario
-      setForm({
-        ...emptyForm,
-        codigo_motor: codigoMotor, // Memoria de qué resorte tocaste
-      });
+     // Si está vacío, derivamos a la vista de inventario en modo "salida"
+    // Pasamos el slot por parámetro para recordarlo
+    setSearchParams({ action: "machine_output", slot: codigoMotor });
     }
-    setOpen(true); // Abrimos la ventana del formulario
   };
   useEffect(() => { document.title = "Planograma · InventaXo"; load(); }, []);
 
@@ -318,8 +322,8 @@ const totalUnits = list.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
   };
 
   // ===== Expense logic =====
-  const openExpense = (p: Product) => {
-    setExpenseDialog({ open: true, product: p, qty: "1", cost: String(p.unit_cost || "") });
+  const openMachineOutput = (p: Product) => {
+    setMachineOutputDialog({ open: true, product: p, qty: "1", sale_price: String(p.sale_price || ""), });
   };
   const proceedExpenseMeta = () => {
     const qty = parseInt(expenseDialog.qty) || 0;
@@ -330,50 +334,56 @@ const totalUnits = list.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
     setMeta({ concept: "", customer: "", payment_method: "Efectivo", employee_id: "" });
     setCheckoutOpen(true);
   };
-  const confirmCheckoutExpense = async () => {
-    const p = expenseDialog.product;
-    if (!p) return;
-    const qty = parseInt(expenseDialog.qty) || 0;
-    const cost = parseFloat(expenseDialog.cost) || 0;
+  const confirmMachineOutput = async () => {
+    const p = machineOutputDialog.product;
+    if (!p || !slotTarget) return;
+    const qty = parseInt(machineOutputDialog.qty) || 0;
+    const customSalePrice = parseFloat(machineOutputDialog.sale_price) || 0;
+
+    if (qty <= 0 || qty > (p.stock_warehouse || 0)) {
+    return toast.error("Cantidad inválida o stock de almacén insuficiente");
+  }
+
     setProcessing(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const total = qty * cost;
-      const employee = employees.find((e) => e.id === meta.employee_id);
+ // 1. Restar stock del inventario principal (Almacén)
+    const newWarehouseStock = p.stock_warehouse - qty;
+    const { error: dbError } = await supabase
+      .from("products")
+      .update({ stock_warehouse: newWarehouseStock })
+      .eq("id", p.id);
 
-      const { data: tx, error: txErr } = await supabase.from("transactions").insert({
-        user_id: user.id,
-        kind: "expense",
-        concept: meta.concept.trim() || null,
-        customer: meta.customer.trim() || null, // proveedor en gasto
-        payment_method: meta.payment_method || null,
-        employee_id: meta.employee_id || null,
-        employee_name: employee?.name || null,
-        subtotal: total,
-        total,
-        total_cost: total,
-        profit: 0,
-      } as any).select("id").single();
-      if (txErr || !tx) { toast.error(txErr?.message || "Error"); return; }
+    if (dbError) throw dbError;
 
-      const { error } = await supabase.from("purchases").insert({
-        user_id: user.id,
-        transaction_id: tx.id,
-        product_id: p.id,
-        quantity: qty,
-        unit_cost: cost,
-        total,
-        supplier: meta.customer.trim() || null,
-      });
-      if (error) { toast.error(error.message); return; }
-      const newStock = (p.stock_warehouse || 0) + qty;
-      await supabase.from("products").update({ stock_warehouse: newStock, unit_cost: cost }).eq("id", p.id);
-      toast.success(`Gasto registrado · +${qty} ${p.unit_type || "unidad"}`);
-      setExpenseDialog({ open: false, product: null, qty: "1", cost: "" });
-      setCheckoutOpen(false);
-      setSearchParams({});
-      navigate("/app/movements");
+    // 2. Construir el payload para la máquina ESP32
+    const payload = {
+      machine_id: "D4-8A-FC-A5-26-AB",
+      codigo_motor: slotTarget, // El resorte que guardamos en la URL
+      nombre_producto: p.name,
+      precio: customSalePrice, // El nuevo precio personalizado
+      stock: qty,
+      capacidad: p.capacidad || 10
+    };
+
+    const apiUrl = import.meta.env.VITE_API_URL;
+    const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      toast.success("Producto asignado al resorte y descontado del almacén");
+      setMachineOutputDialog({ open: false, product: null, qty: "1", sale_price: "" });
+      setSearchParams({}); // Limpiar URL para volver al planograma
+      load(); // Recargar datos
+    } else {
+      toast.error("Error al actualizar la máquina");
+    }
+  } catch (error) {
+    console.error(error);
+    toast.error("Error en la operación");
     } finally {
       setProcessing(false);
     }
@@ -616,44 +626,45 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
       )}
 
       {/* Expense dialog */}
-      <Dialog open={expenseDialog.open} onOpenChange={(o) => !o && setExpenseDialog({ open: false, product: null, qty: "1", cost: "" })}>
+      <Dialog open={machineOutputDialog.open} onOpenChange={(o) => !o && setMachineOutputDialog({ open: false, product: null, qty: "1", sale_price: "" })}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Registrar gasto / compra</DialogTitle>
-            <DialogDescription>{expenseDialog.product?.name}</DialogDescription>
+            <DialogTitle>Asignar producto a Resorte #{slotTarget}</DialogTitle>
+            <DialogDescription>{machineOutputDialog.product?.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Cantidad ({expenseDialog.product?.unit_type || "unidad"})</Label>
+              <Label>Cantidad a transferir (Stock en almacén: {machineOutputDialog.product?.stock_warehouse})</Label>
               <Input
                 type="number"
-                value={expenseDialog.qty}
-                onChange={(e) => setExpenseDialog({ ...expenseDialog, qty: e.target.value })}
-                autoFocus
+                value={machineOutputDialog.qty}
+                onChange={(e) => setMachineOutputDialog({ ...machineOutputDialog, qty: e.target.value })}
+                max={machineOutputDialog.product?.stock_warehouse}
               />
             </div>
             <div>
-              <Label>Costo unitario (S/)</Label>
+              <Label>Precio de Venta en la Máquina (S/)</Label>
               <Input
                 type="number"
                 step="0.01"
-                value={expenseDialog.cost}
-                onChange={(e) => setExpenseDialog({ ...expenseDialog, cost: e.target.value })}
-                placeholder="0.00"
+                value={machineOutputDialog.sale_price}
+                onChange={(e) => setMachineOutputDialog({ ...machineOutputDialog, sale_price: e.target.value })}
               />
-            </div>
-            <div className="rounded-md bg-muted/50 p-2 text-sm flex justify-between">
-              <span className="text-muted-foreground">Total</span>
-              <span className="font-semibold">{fmtMoney((parseInt(expenseDialog.qty) || 0) * (parseFloat(expenseDialog.cost) || 0))}</span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Stock actual: {fmtNumber(expenseDialog.product?.stock_warehouse || 0)} → Nuevo: {fmtNumber((expenseDialog.product?.stock_warehouse || 0) + (parseInt(expenseDialog.qty) || 0))}
-            </div>
+         <p className="text-xs text-muted-foreground mt-1">
+          Este precio solo afectará a este resorte específico. Costo de almacén: S/ {machineOutputDialog.product?.unit_cost}
+               </p>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setExpenseDialog({ open: false, product: null, qty: "1", cost: "" })}>Cancelar</Button>
-            <Button className="bg-red-500 hover:bg-red-600 text-white" onClick={proceedExpenseMeta} disabled={processing}>
-              {processing ? "Guardando…" : "Registrar gasto"}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setMachineOutputDialog({ open: false, product: null, qty: "1", sale_price: "" })}>
+                  Cancelar
+                </Button>
+                <Button 
+                  className="bg-primary text-primary-foreground"
+                  onClick={confirmMachineOutput} 
+                  disabled={processing}
+                >
+                  {processing ? "Asignando..." : "Asignar a Máquina"}
             </Button>
           </DialogFooter>
         </DialogContent>
