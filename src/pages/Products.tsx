@@ -88,7 +88,11 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
   const [processing, setProcessing] = useState(false);
 
   // Expense dialog
-  const [machineOutputDialog, setMachineOutputDialog] = useState<{ open: boolean; product: Product | null; qty: string; cost: string }>({
+// Expense dialog (Gasto original)
+const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Product | null; qty: string; cost: string }>({
+  open: false, product: null, qty: "1", cost: "",
+});
+  const [machineOutputDialog, setMachineOutputDialog] = useState<{ open: boolean; product: Product | null; qty: string; sale_price: string }>({
     open: false, product: null, qty: "1", sale_price: "",
   });
   
@@ -322,50 +326,110 @@ const totalUnits = list.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
   };
 
   // ===== Expense logic =====
-  const openMachineOutput = (p: Product) => {
-    setMachineOutputDialog({ open: true, product: p, qty: "1", sale_price: String(p.sale_price || ""), });
-  };
-  const proceedExpenseMeta = () => {
-    const qty = parseInt(expenseDialog.qty) || 0;
-    const cost = parseFloat(expenseDialog.cost) || 0;
-    if (qty <= 0) return toast.error("Cantidad inválida");
-    if (cost < 0) return toast.error("Costo inválido");
-    setCheckoutMode("expense");
-    setMeta({ concept: "", customer: "", payment_method: "Efectivo", employee_id: "" });
-    setCheckoutOpen(true);
-  };
-  const confirmMachineOutput = async () => {
-    const p = machineOutputDialog.product;
-    if (!p || !slotTarget) return;
-    const qty = parseInt(machineOutputDialog.qty) || 0;
-    const customSalePrice = parseFloat(machineOutputDialog.sale_price) || 0;
+// ===== Lógica de Gastos (Expense Original) =====
+const openExpense = (p: Product) => {
+  setExpenseDialog({ open: true, product: p, qty: "1", cost: String(p.unit_cost || "") });
+};
+const confirmCheckoutExpense = async () => {
+  const p = expenseDialog.product;
+  if (!p) return;
+  const qty = parseInt(expenseDialog.qty) || 0;
+  const cost = parseFloat(expenseDialog.cost) || 0;
+  
+  setProcessing(true);
+  try {
+    // Leemos el usuario localmente como lo haces en tu función "save" original
+    const storedUser = localStorage.getItem("user");
+    if (!storedUser) {
+      toast.error("No hay sesión activa");
+      return;
+    }
+    const user = JSON.parse(storedUser); // Asumiendo que guardaste un objeto JSON
 
-    if (qty <= 0 || qty > (p.stock_warehouse || 0)) {
+    const total = qty * cost;
+    const employee = employees.find((e) => e.id === meta.employee_id);
+    const newStock = (p.stock_warehouse || 0) + qty;
+    
+    const payloadGasto = {
+      user_id: user.id || user.userId, // Ajusta según la estructura de tu usuario local
+      product_id: p.id,
+      quantity: qty,
+      unit_cost: cost,
+      total: total,
+      new_stock: newStock,
+      concept: meta.concept.trim() || null,
+      supplier: meta.customer.trim() || null,
+      payment_method: meta.payment_method || null,
+      employee_id: meta.employee_id || null,
+      employee_name: employee?.name || null,
+    };
+
+    const apiUrl = import.meta.env.VITE_API_URL;
+    
+    // Petición a tu backend para guardar la transacción, la compra y actualizar el stock de una vez
+    // (Asegúrate de crear esta ruta en tu servidor Node.js/PostgreSQL)
+    const res = await fetch(`${apiUrl}/gastos/registrar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadGasto)
+    });
+
+    if (!res.ok) throw new Error("Error al registrar el gasto en el servidor");
+
+    toast.success(`Gasto registrado (+${qty} ${p.unit_type || "unidad"})`);
+    setExpenseDialog({ open: false, product: null, qty: "1", cost: "" });
+    setCheckoutOpen(false);
+    setSearchParams({});
+    // navigate("/app/movements"); // Descomenta si tienes esta vista funcionando
+    load(); // Recargamos para ver el nuevo stock
+  } catch (error) {
+    console.error("Error al registrar gasto:", error);
+    toast.error("Error conectando con el servidor backend");
+  } finally {
+    setProcessing(false);
+  }
+};
+
+  const confirmMachineOutput = async () => {
+const p = machineOutputDialog.product;
+  if (!p || !slotTarget) return;
+
+  const qty = parseInt(machineOutputDialog.qty) || 0;
+  const customSalePrice = parseFloat(machineOutputDialog.sale_price) || 0;
+
+  if (qty <= 0 || qty > (p.stock_warehouse || 0)) {
     return toast.error("Cantidad inválida o stock de almacén insuficiente");
   }
 
-    setProcessing(true);
+  setProcessing(true);
     try {
- // 1. Restar stock del inventario principal (Almacén)
+const apiUrl = import.meta.env.VITE_API_URL;
     const newWarehouseStock = p.stock_warehouse - qty;
-    const { error: dbError } = await supabase
-      .from("products")
-      .update({ stock_warehouse: newWarehouseStock })
-      .eq("id", p.id);
 
-    if (dbError) throw dbError;
+    // 1. Descontar el stock de tu base de datos PostgreSQL principal
+    // (Asegúrate de que esta ruta exista en tu backend)
+    const updateStockRes = await fetch(`${apiUrl}/productos/actualizar-stock`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: p.id,
+        stock_warehouse: newWarehouseStock
+      })
+    });
+    
+    if (!updateStockRes.ok) throw new Error("Error al descontar stock del almacén");
 
     // 2. Construir el payload para la máquina ESP32
     const payload = {
       machine_id: "D4-8A-FC-A5-26-AB",
-      codigo_motor: slotTarget, // El resorte que guardamos en la URL
+      codigo_motor: slotTarget,
       nombre_producto: p.name,
-      precio: customSalePrice, // El nuevo precio personalizado
+      precio: customSalePrice,
       stock: qty,
       capacidad: p.capacidad || 10
     };
 
-    const apiUrl = import.meta.env.VITE_API_URL;
+    // 3. Enviar actualización a la máquina
     const res = await fetch(`${apiUrl}/inventario/actualizar`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -376,14 +440,14 @@ const totalUnits = list.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
     if (data.success) {
       toast.success("Producto asignado al resorte y descontado del almacén");
       setMachineOutputDialog({ open: false, product: null, qty: "1", sale_price: "" });
-      setSearchParams({}); // Limpiar URL para volver al planograma
-      load(); // Recargar datos
+      setSearchParams({}); 
+      load(); 
     } else {
-      toast.error("Error al actualizar la máquina");
+      toast.error(data.message || "Error al actualizar la máquina");
     }
   } catch (error) {
-    console.error(error);
-    toast.error("Error en la operación");
+    console.error("Error en operación:", error);
+    toast.error("Error de conexión con el servidor");
     } finally {
       setProcessing(false);
     }
