@@ -663,7 +663,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
                   const codigoMotor = `${numBandeja}${posicion}`;
                   
                   // OJO: Asegúrate de usar 'list' o 'filtered' según como tengas declarado tu estado de productos arriba
-                  const producto = list.find((p) => p.codigo_motor === codigoMotor);
+                 const producto = list.find((p) => String(p.codigo_motor).trim() === String(codigoMotor).trim());
 
                   // Lógica del semáforo visual
                   let bgColor = "bg-card hover:bg-accent/50";
