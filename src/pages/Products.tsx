@@ -117,7 +117,7 @@ const loadMachines = async () => {
     const apiUrl = import.meta.env.VITE_API_URL;
     
     // Enviamos el correo dinámico a tu backend Node.js
-    const res = await fetch(`${apiUrl}/machines?user=${user.email}`);
+    const res = await fetch(`${apiUrl}/api/inventario/${macActual}`);
     const data = await res.json();
     
     console.log("Respuesta de máquinas:", data); 
