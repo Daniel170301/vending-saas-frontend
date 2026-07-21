@@ -559,8 +559,8 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
           </SelectTrigger>
           <SelectContent>
             {machinesList.map((m) => (
-              <SelectItem key={m.machine_id} value={m.machine_id}>
-                {m.name || m.machine_id}
+              <SelectItem key={m.id} value={m.id}>
+                {m.name || m.id}
               </SelectItem>
             ))}
           </SelectContent>
