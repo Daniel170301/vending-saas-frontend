@@ -48,7 +48,7 @@ const Inventory = () => {
   const loadInventory = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
-      const res = await fetch(`${apiUrl}/api/productos-almacen`);
+      const res = await fetch(`${apiUrl}/productos-almacen`);
       const data = await res.json();
       
       if (data.success) {
@@ -90,7 +90,7 @@ const Inventory = () => {
       const apiUrl = import.meta.env.VITE_API_URL;
       
       // Petición a tu backend (Endpoint que debes crear en Node.js)
-      const res = await fetch(`${apiUrl}/api/productos-almacen`, {
+      const res = await fetch(`${apiUrl}/productos-almacen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
