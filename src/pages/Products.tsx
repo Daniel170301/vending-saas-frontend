@@ -660,7 +660,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 {[0, 1, 2, 3, 4, 5].map((posicion) => {
                   // Genera: 10, 11, 12... 20, 21...
-                  const codigoMotor = `R${numBandeja}${posicion}`;
+                  const codigoMotor = `${numBandeja}${posicion}`;
                   
                   // OJO: Asegúrate de usar 'list' o 'filtered' según como tengas declarado tu estado de productos arriba
                   const producto = list.find((p) => p.codigo_motor === codigoMotor);
