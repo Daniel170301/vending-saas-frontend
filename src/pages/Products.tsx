@@ -140,7 +140,7 @@ const load = async () => {
   
   try {
     const apiUrl = import.meta.env.VITE_API_URL;
-    const res = await fetch(`${apiUrl}/api/inventario/${macActual}`);
+    const res = await fetch(`${apiUrl}/inventario/${macActual}`);
     const data = await res.json();
     
     // Imprimimos el inventario para ver qué llega
