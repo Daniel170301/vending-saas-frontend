@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { fmtMoney, fmtNumber } from "@/lib/format";
 import { Camera, ImagePlus, Package, Plus, AlertTriangle, Tag, Download, FileSpreadsheet, FileText, ShoppingCart, Minus, X, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -90,7 +91,7 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
   // Cart for sale mode: { productId: qty }
   const [cart, setCart] = useState<Record<string, number>>({});
   const [processing, setProcessing] = useState(false);
-
+  const { user } = useAuth();
   // Expense dialog
 // Expense dialog (Gasto original)
 const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Product | null; qty: string; cost: string }>({
@@ -109,17 +110,17 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
 
 // 1. Función para traer tus máquinas desde PostgreSQL
 const loadMachines = async () => {
-  try {
-    // 1. Obtenemos el usuario de tu sesión actual
-    const storedUser = localStorage.getItem("user");
-    const user = storedUser ? JSON.parse(storedUser) : null;
-    const userEmail = user?.email || "desconocido"; // Sacamos el email
+  // Verificamos que el usuario ya esté disponible
+  if (!user?.email) return; 
 
+  try {
     const apiUrl = import.meta.env.VITE_API_URL;
     
-    // 2. Le agregamos "?user=tu_correo" al final de la URL
-    const res = await fetch(`${apiUrl}/api/machines?user=${userEmail}`);
+    // Enviamos el correo dinámico a tu backend Node.js
+    const res = await fetch(`${apiUrl}/machines?user=${user.email}`);
     const data = await res.json();
+    
+    console.log("Respuesta de máquinas:", data); 
     
     if (Array.isArray(data)) {
       setMachinesList(data);
@@ -140,7 +141,7 @@ const load = async () => {
   try {
     const apiUrl = import.meta.env.VITE_API_URL;
     // Ahora le pasamos la MAC dinámica a tu backend
-    const res = await fetch(`${apiUrl}/api/inventario/${macActual}`);
+    const res = await fetch(`${apiUrl}/inventario/${macActual}`);
     const data = await res.json();
     setList(data.inventario || []);
   } catch (err) {
@@ -169,10 +170,12 @@ const load = async () => {
     navigate(`/app/inventory?action=machine_output&slot=${codigoMotor}&mac=${macActual}`);
     }
   };
-  useEffect(() => { document.title = "Planograma · InventaXo"; load(); }, []);
 useEffect(() => {
-  load();
-}, [macActual]); // Se ejecuta cada vez que seleccionas una máquina distinta
+  document.title = "Planograma · InventaXo";
+  if (user?.email) {
+    loadMachines();
+  }
+}, [user]);
 
 
   const parentCats = categories.filter((c) => !c.parent_id);
