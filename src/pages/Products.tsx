@@ -647,9 +647,14 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
         </Card>
       ) : (
         <div className="space-y-6 mt-6">
-          {[1, 2, 3, 4, 5, 6].map((numBandeja) => (
-            <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5">
-              
+{/* LEEMOS LAS BANDEJAS REALES DE LA MÁQUINA DESDE LA BASE DE DATOS */}
+    {(() => {
+      const maquinaSeleccionada = machinesList.find((m) => m.id === macActual);
+      const totalBandejas = maquinaSeleccionada?.layout?.trays?.length || 4;
+      
+      return Array.from({ length: totalBandejas }, (_, i) => i + 1).map((numBandeja) => (
+        <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5">
+
               {/* Cabecera de la Bandeja */}
               <div className="flex justify-between items-center mb-4 pb-2 border-b">
                 <h3 className="font-bold text-lg text-primary-deep">Bandeja {numBandeja}</h3>
@@ -733,10 +738,12 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
                 })}
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    {/* Cart bottom bar (sale mode) */}
+      ));
+})()}
+        
+</div>
+      
+  )}  {/* Cart bottom bar (sale mode) */}
 
       {/* Cart bottom bar (sale mode) */}
       {mode === "sale" && cartCount > 0 && (
