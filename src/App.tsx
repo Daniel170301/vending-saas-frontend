@@ -20,7 +20,7 @@ import Reports from "./pages/Reports";
 import Company from "./pages/Company";
 import NotFound from "./pages/NotFound";
 import AppLayout from "./components/layout/AppLayout";
-
+import Inventory from "./pages/Inventory";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -36,6 +36,7 @@ const App = () => (
             <Route path="/app" element={<Dashboard />} />
             <Route path="/app/machines" element={<Machines />} />
             <Route path="/app/products" element={<Products />} />
+            <Route path="/app/inventory" element={<Inventory />} />
             <Route path="/app/products/:id" element={<ProductDetail />} />
             <Route path="/app/purchases" element={<Purchases />} />
             <Route path="/app/sales" element={<Sales />} />
