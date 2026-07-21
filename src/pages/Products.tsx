@@ -111,11 +111,17 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
 const loadMachines = async () => {
   try {
     const apiUrl = import.meta.env.VITE_API_URL;
-    // Asumimos que tienes una ruta /api/machines en tu backend (app.js)
     const res = await fetch(`${apiUrl}/api/machines`);
     const data = await res.json();
-    if (data.success || data.maquinas) {
-      setMachinesList(data.maquinas || data.data || []);
+    
+    // Imprimimos en consola para ver qué responde tu base de datos
+    console.log("Respuesta de máquinas:", data); 
+
+    // Hacemos que acepte cualquier formato que envíe tu backend
+    if (Array.isArray(data)) {
+      setMachinesList(data);
+    } else {
+      setMachinesList(data.maquinas || data.data || data.rows || []);
     }
   } catch (error) {
     console.error("Error al cargar máquinas:", error);
