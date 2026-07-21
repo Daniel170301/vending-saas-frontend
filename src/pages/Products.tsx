@@ -631,10 +631,11 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
         </div>
       )}
 
-      {filtered.length === 0 ? (  
-        <Card className="p-12 text-center">
+      {!macActual ? (  
+        <Card className="p-12 text-center mt-6">
           <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">Sin productos</p>
+          <p className="text-muted-foreground font-medium text-lg">Por favor, selecciona una máquina arriba</p>
+          <p className="text-sm text-muted-foreground mt-1">El planograma se cargará automáticamente.</p>
         </Card>
       ) : (
         <div className="space-y-6 mt-6">
@@ -648,79 +649,84 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
               </div>
 
               {/* Cuadricula de 6 resortes */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-            {[0, 1, 2, 3, 4, 5].map((posicion) => {
-              // Genera: 10, 11, 12... 20, 21...
-              const codigoMotor = `${numBandeja}${posicion}`;
-              const producto = list.find((p) => p.codigo_motor === codigoMotor);
-
-              // Lógica del semáforo visual
-              let bgColor = "bg-card hover:bg-accent/50";
-              let borderColor = "border-dashed border-gray-300";
-
-              if (producto) {
-                const stock = producto.stock || 0;
-                const capacidad = producto.capacidad || 10;
-                const porcentaje = capacidad > 0 ? (stock / capacidad) : 0;
-
-                if (porcentaje <= 0.3) {
-                  bgColor = "bg-red-50 hover:bg-red-100";
-                  borderColor = "border-solid border-red-400";
-                } else if (porcentaje <= 0.7) {
-                  bgColor = "bg-yellow-50 hover:bg-yellow-100";
-                  borderColor = "border-solid border-yellow-400";
-                } else {
-                  bgColor = "bg-emerald-50 hover:bg-emerald-100";
-                  borderColor = "border-solid border-emerald-400";
-                }
-              }
-
-              return (
-                <div
-                  key={codigoMotor}
-                  onClick={() => handleSlotClick(codigoMotor, producto)}
-                  className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative transition-colors cursor-pointer ${bgColor} ${borderColor}`}
-                >
-                  <span className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/70">
-                    R{codigoMotor}
-                  </span>
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                {[0, 1, 2, 3, 4, 5].map((posicion) => {
+                  // Genera: 10, 11, 12... 20, 21...
+                  const codigoMotor = `${numBandeja}${posicion}`;
                   
-                  {producto ? (
-                    <div className="flex flex-col items-center mt-2 w-full text-center">
-                      <span className="text-xs font-bold line-clamp-2 leading-tight text-gray-800">
-                        {producto.nombre_producto}
-                      </span>
-                      <span className="text-sm font-bold text-primary mt-1">
-                        S/ {Number(producto.precio).toFixed(2)}
+                  // OJO: Asegúrate de usar 'list' o 'filtered' según como tengas declarado tu estado de productos arriba
+                  const producto = list.find((p) => p.codigo_motor === codigoMotor);
+
+                  // Lógica del semáforo visual
+                  let bgColor = "bg-card hover:bg-accent/50";
+                  let borderColor = "border-dashed border-gray-300";
+
+                  if (producto) {
+                    const stock = producto.stock || 0;
+                    const capacidad = producto.capacidad || 10;
+                    const porcentaje = capacidad > 0 ? (stock / capacidad) : 0;
+
+                    if (porcentaje <= 0.3) {
+                      bgColor = "bg-red-50 hover:bg-red-100";
+                      borderColor = "border-solid border-red-400";
+                    } else if (porcentaje <= 0.7) {
+                      bgColor = "bg-yellow-50 hover:bg-yellow-100";
+                      borderColor = "border-solid border-yellow-400";
+                    } else {
+                      bgColor = "bg-emerald-50 hover:bg-emerald-100";
+                      borderColor = "border-solid border-emerald-400";
+                    }
+                  }
+
+                  return (
+                    <div
+                      key={codigoMotor}
+                      onClick={() => handleSlotClick(codigoMotor, producto)}
+                      className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative transition-colors cursor-pointer ${bgColor} ${borderColor}`}
+                    >
+                      <span className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/70">
+                        R{codigoMotor}
                       </span>
                       
-                      {/* Indicador de Stock vs Capacidad */}
-                      <div className="mt-2 w-full px-2">
-                        <div className="text-[10px] text-gray-600 mb-1 font-medium flex justify-between">
-                          <span>Stock: {producto.stock}</span>
-                          <span>Máx: {producto.capacidad || 10}</span>
+                      {producto ? (
+                        <div className="flex flex-col items-center mt-2 w-full text-center">
+                          <span className="text-xs font-bold line-clamp-2 leading-tight text-gray-800">
+                            {producto.nombre_producto}
+                          </span>
+                          <span className="text-sm font-bold text-primary mt-1">
+                            S/ {Number(producto.precio).toFixed(2)}
+                          </span>
+                          
+                          {/* Indicador de Stock vs Capacidad */}
+                          <div className="mt-2 w-full px-2">
+                            <div className="text-[10px] text-gray-600 mb-1 font-medium flex justify-between">
+                              <span>Stock: {producto.stock}</span>
+                              <span>Máx: {producto.capacidad || 10}</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-gray-200">
+                              <div 
+                                className={`h-full ${
+                                  (producto.stock / (producto.capacidad || 10)) <= 0.3 ? 'bg-red-500' : 
+                                  (producto.stock / (producto.capacidad || 10)) <= 0.7 ? 'bg-yellow-500' : 'bg-emerald-500'
+                                }`}
+                                style={{ width: `${Math.min(100, ((producto.stock || 0) / (producto.capacidad || 10)) * 100)}%` }}
+                              />
+                            </div>
+                          </div>
                         </div>
-                        <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-gray-200">
-                          <div 
-                            className={`h-full ${producto.stock / (producto.capacidad || 10) <= 0.3 ? 'bg-red-500' : producto.stock / (producto.capacidad || 10) <= 0.7 ? 'bg-yellow-500' : 'bg-emerald-500'}`}
-                            style={{ width: `${Math.min(100, ((producto.stock || 0) / (producto.capacidad || 10)) * 100)}%` }}
-                          />
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <div className="h-8 w-8 rounded border-2 border-dashed border-gray-300 mb-1"></div>
+                          <span className="text-[11px] text-muted-foreground">Vacío</span>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <div className="h-8 w-8 rounded border-2 border-dashed border-gray-300 mb-1"></div>
-                      <span className="text-[11px] text-muted-foreground">Vacío</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
       )}
     {/* Cart bottom bar (sale mode) */}
 
