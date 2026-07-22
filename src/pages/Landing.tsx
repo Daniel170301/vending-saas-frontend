@@ -51,7 +51,8 @@ const Landing = () => {
                 </Button>
               </Link>
               <a href="#features">
-                <Button variant="outline" size="xl" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                {/* Quitamos el variant="outline" y aplicamos los colores verdes directamente */}
+                <Button size="xl" className="bg-emerald-600 text-white hover:bg-emerald-700 border-none transition-colors shadow-lg">
                   Ver funcionalidades
                 </Button>
               </a>
