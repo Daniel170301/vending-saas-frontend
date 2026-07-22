@@ -64,11 +64,21 @@ const Inventory = () => {
     custom_price: "",
   });
 
-  const loadInventory = async () => {
+const loadInventory = async () => {
     try {
+      // 1. Buscamos quién es el usuario logueado
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      
+      if (!user) return; // Si no hay usuario, cancelamos la búsqueda
+      
+      const userId = user.id || user.userId;
       const apiUrl = import.meta.env.VITE_API_URL;
-      const res = await fetch(`${apiUrl}/productos-almacen`);
+      
+      // 2. Le pasamos el user_id en la URL a tu backend
+      const res = await fetch(`${apiUrl}/productos-almacen?user_id=${userId}`);
       const data = await res.json();
+      
       if (data.success) {
         setList(data.productos || []);
       }
@@ -78,7 +88,6 @@ const Inventory = () => {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     document.title = isMachineOutputMode ? `Asignar a Resorte ${slotTarget}` : "Inventario | InventaXo";
     loadInventory();
