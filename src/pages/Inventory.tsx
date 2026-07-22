@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom"; // IMPORTANTE: Agregado
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,6 @@ const Inventory = () => {
   const [list, setList] = useState<AlmacenProduct[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Leemos los parametros de la URL para saber si venimos del planograma
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const action = searchParams.get("action");
@@ -49,12 +48,10 @@ const Inventory = () => {
   
   const isMachineOutputMode = action === "machine_output" && slotTarget && macTarget;
 
-  // Estados para Modal Nuevo Producto
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<AlmacenProduct>(emptyForm);
   const [processing, setProcessing] = useState(false);
 
-  // Estados para Modal Asignar a Máquina
   const [assignDialog, setAssignDialog] = useState<{
     open: boolean;
     product: AlmacenProduct | null;
@@ -87,7 +84,7 @@ const Inventory = () => {
     loadInventory();
   }, [isMachineOutputMode]);
 
-  // Función para guardar Nuevo Producto
+  // --- NUEVA LÓGICA DE GUARDADO Y EDICIÓN ---
   const saveProduct = async () => {
     if (!form.name.trim()) return toast.error("El nombre es requerido");
     if (form.sale_price <= 0) return toast.error("El precio debe ser mayor a 0");
@@ -107,15 +104,22 @@ const Inventory = () => {
       };
       
       const apiUrl = import.meta.env.VITE_API_URL;
-      const res = await fetch(`${apiUrl}/productos-almacen`, {
-        method: 'POST',
+      
+      // Determinamos si es una edición (PUT) o creación (POST)
+      const isEditing = !!form.id;
+      // IMPORTANTE: Asegúrate de que tu backend tenga esta ruta habilitada para PUT si vas a editar
+      const url = isEditing ? `${apiUrl}/productos-almacen/${form.id}` : `${apiUrl}/productos-almacen`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       
       const data = await res.json();
       if (data.success) {
-        toast.success("Producto guardado exitosamente");
+        toast.success(isEditing ? "Producto actualizado" : "Producto creado exitosamente");
         setOpen(false);
         setForm(emptyForm);
         loadInventory();
@@ -130,19 +134,24 @@ const Inventory = () => {
     }
   };
 
-  // Función que se dispara al tocar un producto en modo Asignación
+  // --- LÓGICA DE CLIC EN LA TARJETA ---
   const handleProductClick = (product: AlmacenProduct) => {
     if (isMachineOutputMode) {
+      // Si venimos del planograma, abrimos el modal de asignación a máquina
       setAssignDialog({
         open: true,
         product,
         qty: "1",
         custom_price: String(product.sale_price || 0)
       });
+    } else {
+      // Si estamos en inventario normal, abrimos el modal de edición
+      setForm(product);
+      setOpen(true);
     }
   };
 
-  // Función final que manda el producto a la máquina y descuenta del almacén
+  // --- LÓGICA DE ASIGNACIÓN A MÁQUINA Y RESTA DE STOCK ---
   const confirmAssignment = async () => {
     const p = assignDialog.product;
     if (!p || !slotTarget || !macTarget) return;
@@ -158,7 +167,20 @@ const Inventory = () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
       
-      // Armamos el paquete exacto como lo requiere tu endpoint /inventario/actualizar
+      // 1. RESTAR STOCK DE BODEGA
+      const newWarehouseStock = p.stock_warehouse - qty;
+      const updateStockRes = await fetch(`${apiUrl}/productos/actualizar-stock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: p.id,
+          stock_warehouse: newWarehouseStock
+        })
+      });
+
+      if (!updateStockRes.ok) throw new Error("Error actualizando stock en bodega");
+
+      // 2. ENVIAR A LA MÁQUINA
       const payload = {
         machine_id: macTarget,
         codigo_motor: slotTarget,
@@ -166,8 +188,6 @@ const Inventory = () => {
         precio: price,
         stock: qty,
         capacidad: p.capacidad || 10,
-        // Opcional: si tu backend en /inventario/actualizar usa el ID del producto para descontar stock, pásalo:
-        // id_producto_almacen: p.id
       };
 
       const res = await fetch(`${apiUrl}/inventario/actualizar`, {
@@ -178,9 +198,8 @@ const Inventory = () => {
 
       const data = await res.json();
       if (data.success) {
-        toast.success("¡Producto asignado al resorte!");
+        toast.success("¡Producto asignado y stock de bodega actualizado!");
         setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" });
-        // Nos devolvemos al planograma de inmediato
         navigate(`/app/products?mac=${macTarget}`);
       } else {
         toast.error(data.message || "Error al asignar producto a la máquina");
@@ -222,11 +241,7 @@ const Inventory = () => {
             <Card 
               key={p.id || index} 
               onClick={() => handleProductClick(p)}
-              className={`p-4 flex flex-col justify-between transition-all ${
-                isMachineOutputMode 
-                  ? "cursor-pointer hover:border-primary hover:shadow-md ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" 
-                  : ""
-              }`}
+              className="p-4 flex flex-col justify-between transition-all cursor-pointer hover:border-primary hover:shadow-md ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <div>
                 <h3 className="font-bold text-lg">{p.name}</h3>
@@ -247,10 +262,12 @@ const Inventory = () => {
         </div>
       )}
 
-      {/* Modal para Nuevo Producto original */}
+      {/* Modal para Nuevo/Editar Producto */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Añadir Nuevo Producto al Almacén</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{form.id ? "Editar Producto" : "Añadir Nuevo Producto al Almacén"}</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
               <Label>Nombre del producto</Label>
@@ -303,7 +320,7 @@ const Inventory = () => {
         </DialogContent>
       </Dialog>
 
-      {/* NUEVO: Modal de Asignación a Máquina */}
+      {/* Modal de Asignación a Máquina */}
       <Dialog open={assignDialog.open} onOpenChange={(o) => { if (!o) setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" })}}>
         <DialogContent>
           <DialogHeader>
