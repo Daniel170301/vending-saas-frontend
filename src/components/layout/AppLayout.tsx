@@ -34,7 +34,7 @@ const mobileNavItems = [
 ];
 
 const AppLayout = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const { company } = useCompany();
   const navigate = useNavigate();
 
@@ -54,8 +54,7 @@ const AppLayout = () => {
   const brandName = company?.business_name || "InventaXo";
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/", { replace: true });
+    signOut(); // Esta función ya limpia el localStorage y te redirige
   };
 
   return (
