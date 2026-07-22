@@ -88,6 +88,62 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
   const imgInputRef = useRef<HTMLInputElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
+
+// NUEVO: Estado para editar un resorte que ya tiene producto
+  const [slotEditDialog, setSlotEditDialog] = useState({
+    open: false,
+    slot: "",
+    product: null,
+    newStock: ""
+  });
+
+  // NUEVO: Función para guardar solo el stock nuevo en la máquina
+  const updateMachineStock = async () => {
+    const { slot, product, newStock } = slotEditDialog;
+    if (!product) return;
+
+    setProcessing(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const payload = {
+        machine_id: macActual,
+        codigo_motor: slot,
+        nombre_producto: product.nombre_producto,
+        precio: product.precio,
+        stock: parseInt(newStock) || 0,
+        capacidad: product.capacidad || 10
+      };
+
+      const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Stock actualizado correctamente");
+        setSlotEditDialog({ open: false, slot: "", product: null, newStock: "" });
+        load(); 
+      } else {
+        toast.error(data.message || "Error al actualizar stock");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error de conexión");
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // NUEVO: Función para vaciar la ventana y redirigir al inventario
+  const handleChangeProduct = () => {
+    const { slot } = slotEditDialog;
+    setSlotEditDialog({ open: false, slot: "", product: null, newStock: "" });
+    navigate(`/app/inventory?action=machine_output&slot=${slot}&mac=${macActual}`);
+  };
+
+
   // Cart for sale mode: { productId: qty }
   const [cart, setCart] = useState<Record<string, number>>({});
   const [processing, setProcessing] = useState(false);
@@ -171,28 +227,24 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
 
   
 // Función que se ejecuta al hacer clic en cualquier resorte
-  const handleSlotClick = (codigoMotor, productoExistente) => {
-    if (productoExistente) {  
-      // Si ya hay una galleta/gaseosa ahí, cargamos sus datos para editar
-      setForm({
-        ...emptyForm,
-        name: productoExistente.nombre_producto || "",
-        sale_price: productoExistente.precio ? productoExistente.precio.toString() : "",
-        stock_warehouse: productoExistente.stock ? productoExistente.stock.toString() : "",
-        capacidad: productoExistente.capacidad ? productoExistente.capacidad.toString() : "10",
-        codigo_motor: codigoMotor, // Memoria de qué resorte tocaste
-      });
-      setOpen(true);
-    } else {
-      if (!macActual) {
+ const handleSlotClick = (codigoMotor, productoExistente) => {
+    if (!macActual) {
       return toast.error("No hay una máquina seleccionada");
     }
-     // Si está vacío, derivamos a la vista de inventario en modo "salida"
-    // Pasamos el slot por parámetro para recordarlo
-    navigate(`/app/inventory?action=machine_output&slot=${codigoMotor}&mac=${macActual}`);
+    
+    if (productoExistente) {
+      // Si ya hay producto, abrimos nuestra nueva ventanita simplificada
+      setSlotEditDialog({
+        open: true,
+        slot: codigoMotor,
+        product: productoExistente,
+        newStock: productoExistente.stock ? productoExistente.stock.toString() : "0"
+      });
+    } else {
+      // Si está vacío, te manda directo al inventario (igual que antes)
+      navigate(`/app/inventory?action=machine_output&slot=${codigoMotor}&mac=${macActual}`);
     }
   };
-
 
 
   const parentCats = categories.filter((c) => !c.parent_id);
@@ -1057,6 +1109,47 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
       </Dialog>
     </div>
   );
+
+{/* NUEVO: Modal simplificado para editar stock o cambiar de producto */}
+      <Dialog open={slotEditDialog.open} onOpenChange={(o) => setSlotEditDialog({ ...slotEditDialog, open: o })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gestionar Resorte {slotEditDialog.slot}</DialogTitle>
+            <DialogDescription>
+              Producto actual: <span className="font-bold text-primary">{slotEditDialog.product?.nombre_producto}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Stock Actual en Máquina</Label>
+              <Input
+                type="number"
+                min="0"
+                value={slotEditDialog.newStock}
+                onChange={(e) => setSlotEditDialog({ ...slotEditDialog, newStock: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex sm:justify-between w-full flex-col sm:flex-row gap-2">
+            {/* Botón a la izquierda: Cambiar producto */}
+            <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" onClick={handleChangeProduct}>
+              Cambiar Producto
+            </Button>
+            
+            {/* Botones a la derecha: Cancelar y Guardar */}
+            <div className="flex gap-2 justify-end">
+              <Button variant="ghost" onClick={() => setSlotEditDialog({ open: false, slot: "", product: null, newStock: "" })}>
+                Cancelar
+              </Button>
+              <Button className="bg-primary text-white" onClick={updateMachineStock} disabled={processing}>
+                {processing ? "Guardando..." : "Actualizar Stock"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 };
 
 export default Products;
