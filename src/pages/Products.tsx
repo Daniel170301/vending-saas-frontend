@@ -182,6 +182,11 @@ const load = async () => {
     navigate(`/app/inventory?action=machine_output&slot=${codigoMotor}&mac=${macActual}`);
     }
   };
+
+  // 1. PRIMER useEffect: Carga la lista de máquinas al abrir la página
+  useEffect(() => {
+    loadMachines();
+  }, []); // <-- Los corchetes vacíos significan "ejecutar solo una vez al inicio"
 // Este useEffect "escucha" cada vez que macActual cambia
   useEffect(() => {
     if (macActual) {
