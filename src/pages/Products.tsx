@@ -226,14 +226,15 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
 
 
   
-// Función que se ejecuta al hacer clic en cualquier resorte
- const handleSlotClick = (codigoMotor, productoExistente) => {
+const handleSlotClick = (codigoMotor, productoExistente) => {
+    console.log("Clic detectado en resorte:", codigoMotor, "Producto:", productoExistente);
+    
     if (!macActual) {
       return toast.error("No hay una máquina seleccionada");
     }
     
     if (productoExistente) {
-      // Si ya hay producto, abrimos nuestra nueva ventanita simplificada
+      // Abre la ventana amigable
       setSlotEditDialog({
         open: true,
         slot: codigoMotor,
@@ -241,7 +242,7 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
         newStock: productoExistente.stock ? productoExistente.stock.toString() : "0"
       });
     } else {
-      // Si está vacío, te manda directo al inventario (igual que antes)
+      // Va al inventario
       navigate(`/app/inventory?action=machine_output&slot=${codigoMotor}&mac=${macActual}`);
     }
   };
