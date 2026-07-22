@@ -146,11 +146,15 @@ const load = async () => {
     // Imprimimos el inventario para ver qué llega
     console.log("Inventario recibido:", data);
 
-    // Guardamos la lista sin importar el formato en que venga
-    if (Array.isArray(data)) {
+// Extraemos el arreglo de productos basándonos en cómo responde tu Node.js
+    if (data && data.inventario && Array.isArray(data.inventario)) {
+      setList(data.inventario); // <--- Aquí está la clave para tu backend
+    } else if (Array.isArray(data)) {
       setList(data);
+    } else if (data && data.data && Array.isArray(data.data)) {
+      setList(data.data);
     } else {
-      setList(data.inventario || data.data || data.rows || []);
+      setList([]);
     }
   } catch (err) {
     console.error("Error cargando inventario:", err);
