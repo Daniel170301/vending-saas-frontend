@@ -182,12 +182,12 @@ const load = async () => {
     navigate(`/app/inventory?action=machine_output&slot=${codigoMotor}&mac=${macActual}`);
     }
   };
-useEffect(() => {
-  document.title = "Planograma · InventaXo";
-  if (user?.email) {
-    loadMachines();
-  }
-}, [user]);
+// Este useEffect "escucha" cada vez que macActual cambia
+  useEffect(() => {
+    if (macActual) {
+      load();
+    }
+  }, [macActual]); //
 
 
   const parentCats = categories.filter((c) => !c.parent_id);
