@@ -109,57 +109,65 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
 
 
 // 1. Función para traer tus máquinas desde PostgreSQL
-const loadMachines = async () => {
-  // Verificamos que el usuario ya esté disponible
-  if (!user?.email) return; 
-
-  try {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    
-    // Enviamos el correo dinámico a tu backend Node.js
-    const res = await fetch(`${apiUrl}/machines?user=${user.email}`);
-    const data = await res.json();
-    
-    console.log("Respuesta de máquinas:", data); 
-    
-    if (Array.isArray(data)) {
-      setMachinesList(data);
-    } else {
-      setMachinesList(data.maquinas || data.data || []);
+  const loadMachines = async () => {
+    if (!user?.email) return;
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      // Usamos comillas invertidas (backticks) y ${} correctamente
+      const res = await fetch(`${apiUrl}/machines?user=${user.email}`);
+      const data = await res.json();
+      console.log("Respuesta de máquinas:", data);
+      
+      if (Array.isArray(data)) {
+        setMachinesList(data);
+      } else {
+        setMachinesList(data.maquinas || data.data || []);
+      }
+    } catch (error) {
+      console.error("Error al cargar máquinas:", error);
     }
-  } catch (error) {
-    console.error("Error al cargar máquinas:", error);
-  }
-};
+  };
 
-const load = async () => {
-  if (!macActual) {
-    setList([]);
-    return;
-  }
-  
-  try {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    const res = await fetch(`${apiUrl}/inventario/${macActual}`);
-    const data = await res.json();
-    
-    // Imprimimos el inventario para ver qué llega
-    console.log("Inventario recibido:", data);
-
-// Extraemos el arreglo de productos basándonos en cómo responde tu Node.js
-    if (data && data.inventario && Array.isArray(data.inventario)) {
-      setList(data.inventario); // <--- Aquí está la clave para tu backend
-    } else if (Array.isArray(data)) {
-      setList(data);
-    } else if (data && data.data && Array.isArray(data.data)) {
-      setList(data.data);
-    } else {
+// 2. Función para cargar el inventario de la máquina seleccionada
+  const load = async () => {
+    if (!macActual) {
       setList([]);
+      return;
     }
-  } catch (err) {
-    console.error("Error cargando inventario:", err);
-  }
-};
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      // Sin el /api/ y con comillas invertidas (backticks)
+      const res = await fetch(`${apiUrl}/inventario/${macActual}`);
+      const data = await res.json();
+      console.log("Inventario recibido:", data);
+      
+      if (data && data.inventario && Array.isArray(data.inventario)) {
+        setList(data.inventario);
+      } else if (Array.isArray(data)) {
+        setList(data);
+      } else if (data && data.data && Array.isArray(data.data)) {
+        setList(data.data);
+      } else {
+        setList([]);
+      }
+    } catch (err) {
+      console.error("Error cargando inventario:", err);
+    }
+  };
+
+  // 3. LOS DOS useEffect CORRECTAMENTE ESCRITOS
+  useEffect(() => {
+    loadMachines();
+  }, []); // <-- Se ejecuta una sola vez al cargar la página
+
+  useEffect(() => {
+    if (macActual) {
+      load();
+    }
+  }, [macActual]); // <-- Se ejecuta cada vez que seleccionas una máquina distint
+
+
+
 // Función que se ejecuta al hacer clic en cualquier resorte
   const handleSlotClick = (codigoMotor, productoExistente) => {
     if (productoExistente) {  
@@ -183,16 +191,6 @@ const load = async () => {
     }
   };
 
-  // 1. PRIMER useEffect: Carga la lista de máquinas al abrir la página
-  useEffect(() => {
-    loadMachines();
-  }, []); // <-- Los corchetes vacíos significan "ejecutar solo una vez al inicio"
-// Este useEffect "escucha" cada vez que macActual cambia
-  useEffect(() => {
-    if (macActual) {
-      load();
-    }
-  }, [macActual]); //
 
 
   const parentCats = categories.filter((c) => !c.parent_id);
