@@ -167,7 +167,7 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
   }, [macActual]); // <-- Se ejecuta cada vez que seleccionas una máquina distint
 
 
-
+  
 // Función que se ejecuta al hacer clic en cualquier resorte
   const handleSlotClick = (codigoMotor, productoExistente) => {
     if (productoExistente) {  
@@ -191,6 +191,16 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
     }
   };
 
+  // 1. PRIMER useEffect: Carga la lista de máquinas al abrir la página
+  useEffect(() => {
+    loadMachines();
+  }, []); // <-- Los corchetes vacíos significan "ejecutar solo una vez al inicio"
+// Este useEffect "escucha" cada vez que macActual cambia
+  useEffect(() => {
+    if (macActual) {
+      load();
+    }
+  }, [macActual]); //
 
 
   const parentCats = categories.filter((c) => !c.parent_id);
