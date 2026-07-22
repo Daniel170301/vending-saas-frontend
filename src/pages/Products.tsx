@@ -155,10 +155,12 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
     }
   };
 
-  // 3. LOS DOS useEffect CORRECTAMENTE ESCRITOS
+// 1. PRIMER useEffect: Carga la lista de máquinas en cuanto el usuario esté listo
   useEffect(() => {
-    loadMachines();
-  }, []); // <-- Se ejecuta una sola vez al cargar la página
+    if (user?.email) {
+      loadMachines();
+    }
+  }, [user?.email]); // <-- Ahora React escuchará y disparará la función cuando detecte al usuario
 
   useEffect(() => {
     if (macActual) {
@@ -191,16 +193,6 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
     }
   };
 
-  // 1. PRIMER useEffect: Carga la lista de máquinas al abrir la página
-  useEffect(() => {
-    loadMachines();
-  }, []); // <-- Los corchetes vacíos significan "ejecutar solo una vez al inicio"
-// Este useEffect "escucha" cada vez que macActual cambia
-  useEffect(() => {
-    if (macActual) {
-      load();
-    }
-  }, [macActual]); //
 
 
   const parentCats = categories.filter((c) => !c.parent_id);
