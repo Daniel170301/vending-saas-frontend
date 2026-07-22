@@ -54,19 +54,32 @@ const Sales = () => {
 
 const load = async () => {
   try {
+    // 1. Buscamos quién es el usuario logueado en la memoria
+    const storedUser = localStorage.getItem("user");
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    
+    // Si por alguna razón no hay usuario, cancelamos la carga por seguridad
+    if (!user) {
+      console.warn("⚠️ No hay usuario en sesión.");
+      return; 
+    }
+    
+    // Extraemos el ID (dependiendo de cómo lo guardes, puede ser id o userId)
+    const userId = user.id || user.userId;
+
     const apiUrl = import.meta.env.VITE_API_URL || "";
-    // Cambia tu línea actual por esta:
-    const fetchUrl = `${apiUrl.replace(/\/api$/, '')}/api/ventas/historial`;
+    
+    // 2. Armamos la URL agregando el parámetro ?user_id=
+    const baseUrl = `${apiUrl.replace(/\/api$/, '')}/api/ventas/historial`;
+    const fetchUrl = `${baseUrl}?user_id=${userId}`;
 
     console.log("1. Buscando en:", fetchUrl);
 
     const res = await fetch(fetchUrl);
     const hwData = await res.json();
 
-    // AQUÍ imprimimos la respuesta una vez que la variable YA EXISTE
     console.log("2. Respuesta del servidor:", hwData);
 
-    // Verificamos que hwData tenga la propiedad 'ventas'
     if (hwData && Array.isArray(hwData.ventas)) {
       const hwSales = hwData.ventas.map((v: any) => ({
         id: `hw-${v.id}`,
@@ -80,7 +93,9 @@ const load = async () => {
         customer_name: v.nombre_cliente
       }));
 
+      // Ordenamos de más reciente a más antiguo
       hwSales.sort((a: any, b: any) => new Date(b.sold_at).getTime() - new Date(a.sold_at).getTime());
+      
       setList(hwSales);
       console.log("3. Ventas procesadas:", hwSales.length);
     } else {
