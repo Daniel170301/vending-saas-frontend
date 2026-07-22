@@ -169,7 +169,7 @@ const Inventory = () => {
       
       // 1. RESTAR STOCK DE BODEGA
       const newWarehouseStock = p.stock_warehouse - qty;
-      const updateStockRes = await fetch(`${apiUrl}/productos/actualizar-stock`, {
+      const updateStockRes = await fetch(`${apiUrl}/productos-almacen/${p.id}/stock`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
