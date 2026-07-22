@@ -1108,16 +1108,13 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-
-{/* NUEVO: Modal simplificado para editar stock o cambiar de producto */}
+        {/* NUEVO: Modal simplificado para editar stock o cambiar de producto */}
       <Dialog open={slotEditDialog.open} onOpenChange={(o) => setSlotEditDialog({ ...slotEditDialog, open: o })}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Gestionar Resorte {slotEditDialog.slot}</DialogTitle>
             <DialogDescription>
-              Producto actual: <span className="font-bold text-primary">{slotEditDialog.product?.nombre_producto}</span>
+              Producto actual: <span className="font-bold text-primary">{slotEditDialog.product?.nombre_producto || slotEditDialog.product?.name}</span>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1149,8 +1146,9 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
+    </div>
+    
+  );
 };
 
 export default Products;
