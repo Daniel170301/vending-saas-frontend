@@ -241,7 +241,7 @@ const save = async () => {
       unit_type: form.unit_type || "unidad",
       
       // Datos clave para tu ruta /actualizar y la comunicación MQTT
-      machine_id: "D4-8A-FC-A5-26-A8", 
+      machine_id: macActual, 
       codigo_motor: form.codigo_motor,
       nombre_producto: form.name.trim(),
       precio: parseFloat(form.sale_price) || 0,
