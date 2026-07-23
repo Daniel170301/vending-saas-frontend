@@ -12,7 +12,7 @@ const Landing = () => {
             <div className="h-9 w-9 rounded-xl gradient-gold flex items-center justify-center shadow-glow">
               <Boxes className="h-5 w-5 text-primary-deep" />
             </div>
-            <span className="font-display text-xl font-bold text-primary-foreground">InventaXo</span>
+            <span className="font-display text-xl font-bold text-primary-foreground">Kymez App</span>
           </Link>
           <nav className="hidden md:flex items-center gap-8 text-sm text-primary-foreground/80">
             <a href="#features" className="hover:text-accent transition-colors">Funcionalidades</a>
@@ -168,7 +168,7 @@ Content-Type: application/json
 
       <footer className="border-t py-8">
         <div className="container text-center text-sm text-muted-foreground">
-          © 2026 InventaXo · Inventario inteligente para vending
+          © 2026 Kymez App · Inventario inteligente para vending
         </div>
       </footer>
     </div>

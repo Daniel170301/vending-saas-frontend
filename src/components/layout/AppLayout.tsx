@@ -51,7 +51,7 @@ const AppLayout = () => {
   }
   if (!user) return null;
 
-  const brandName = company?.business_name || "InventaXo";
+  const brandName = company?.business_name || "Kymez App";
 
   const handleLogout = async () => {
     signOut(); // Esta función ya limpia el localStorage y te redirige
