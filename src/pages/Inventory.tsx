@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -10,6 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Package, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/lib/format";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { Download } from "lucide-react"; // El ícono de descarga
 
 type AlmacenProduct = {
   id?: number;
@@ -220,6 +224,70 @@ const loadInventory = async () => {
       setProcessing(false);
     }
   };
+const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    const ahora = new Date();
+    const fecha = ahora.toLocaleDateString();
+    // Formateamos la hora reemplazando los dos puntos por guiones para que sea un nombre de archivo válido
+    const hora = ahora.toLocaleTimeString().replace(/:/g, '-');
+
+    // 1. Cálculos usando los nombres exactos de tu tipo AlmacenProduct
+    const totalUnidades = list.reduce((acc, item) => acc + (Number(item.stock_warehouse) || 0), 0);
+    const valorTotalInventario = list.reduce((acc, item) => acc + ((Number(item.stock_warehouse) || 0) * (Number(item.sale_price) || 0)), 0);
+    const totalReferencias = list.length;
+
+    // 2. Cabecera Estética (Estilo Kymaz App)
+    doc.setFontSize(22);
+    doc.setTextColor(4, 120, 87); // Verde esmeralda
+    doc.text("Inventario de Almacén", 14, 22);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Kymaz App - Generado el: ${fecha} a las ${ahora.toLocaleTimeString()}`, 14, 30);
+
+    // 3. Resumen Financiero
+    doc.setFontSize(11);
+    doc.setTextColor(0);
+    doc.text(
+      `Resumen: ${totalReferencias} Productos distintos | ${totalUnidades} unidades en bodega | Capital: S/ ${valorTotalInventario.toFixed(2)}`,
+      14, 40
+    );
+
+    // 4. Columnas para el Almacén
+    const tableColumn = ["Producto", "Categoría", "Stock Bodega", "Precio Base", "Valor Total"];
+    
+    const tableRows = list.map((item) => {
+      // Usamos las propiedades correctas de TypeScript (stock_warehouse y sale_price)
+      const stock = Number(item.stock_warehouse) || 0;
+      const precio = Number(item.sale_price) || 0;
+      const valorTotalItem = stock * precio;
+
+      return [
+        item.name || "N/A",
+        item.category || "-",
+        `${stock} un.`,
+        `S/ ${precio.toFixed(2)}`,
+        `S/ ${valorTotalItem.toFixed(2)}`
+      ];
+    });
+
+    // 5. Renderizado de la tabla con colores
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 45,
+      theme: 'striped',
+      headStyles: { fillColor: [4, 120, 87] },
+      styles: { fontSize: 9, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [245, 250, 248] },
+      columnStyles: {
+        4: { fontStyle: 'bold', textColor: [4, 120, 87] } // Resalta el dinero en verde
+      }
+    });
+
+    // 6. Descarga con Fecha y Hora para que no se sobreescriban
+    doc.save(`KymazApp_Almacen_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
+  };
 
   return (
     <div className="container py-8 pb-32">
@@ -228,13 +296,26 @@ const loadInventory = async () => {
         description={isMachineOutputMode 
           ? "Selecciona un producto de tu almacén para enviarlo a la bandeja." 
           : "Gestiona los productos, stock general y precios base."}
-        actions={
-          !isMachineOutputMode && (
-            <Button className="bg-primary text-primary-foreground" onClick={() => { setForm(emptyForm); setOpen(true); }}>
-              <Plus className="h-4 w-4 mr-2" /> Nuevo Producto
-            </Button>
-          )
-        }
+actions={
+  !isMachineOutputMode && (
+    <div className="flex gap-3">
+      {/* NUEVO BOTÓN DE DESCARGA PDF */}
+      <Button 
+        variant="outline" 
+        onClick={handleDownloadPDF}
+        className="text-emerald-700 border-emerald-700 hover:bg-emerald-50"
+      >
+        <Download className="mr-2 h-4 w-4" />
+        Descargar PDF
+      </Button>
+
+      {/* TU BOTÓN ORIGINAL DE NUEVO PRODUCTO */}
+      <Button className="bg-primary text-primary-foreground" onClick={() => { setForm(emptyForm); setOpen(true); }}>
+        <Plus className="h-4 w-4 mr-2" /> Nuevo Producto
+      </Button>
+    </div>
+  )
+}
       />
 
       {loading ? (
