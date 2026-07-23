@@ -14,7 +14,7 @@ const Reports = () => {
   const [byProduct, setByProduct] = useState<any[]>([]);
 
   useEffect(() => {
-    document.title = "Reportes · InventaXo";
+    document.title = "Reportes · Kymez App";
     (async () => {
       const start = startOfMonth(subMonths(new Date(), 11));
       const { data: sales } = await supabase.from("sales")

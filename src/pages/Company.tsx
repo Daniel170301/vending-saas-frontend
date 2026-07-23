@@ -37,7 +37,7 @@ const Company = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    document.title = "Mi empresa · InventaXo";
+    document.title = "Mi empresa · Kymez App";
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setLoading(false); return; }
@@ -105,7 +105,7 @@ const Company = () => {
           </div>
           <div>
             <h3 className="font-semibold">Datos del negocio</h3>
-            <p className="text-xs text-muted-foreground">Reemplaza “InventaXo” por tu marca</p>
+            <p className="text-xs text-muted-foreground">Reemplaza “Kymez App” por tu marca</p>
           </div>
         </div>
 

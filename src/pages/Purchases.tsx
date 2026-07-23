@@ -25,7 +25,7 @@ const Purchases = () => {
     const { data: p } = await supabase.from("products").select("id, name, unit_cost").order("name");
     setProducts(p || []);
   };
-  useEffect(() => { document.title = "Compras · InventaXo"; load(); }, []);
+  useEffect(() => { document.title = "Compras · Kymez App"; load(); }, []);
 
   const save = async () => {
     if (!form.product_id || !form.quantity || !form.unit_cost) return toast.error("Completa todos los campos");

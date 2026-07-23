@@ -89,7 +89,7 @@ const loadInventory = async () => {
     }
   };
   useEffect(() => {
-    document.title = isMachineOutputMode ? `Asignar a Resorte ${slotTarget}` : "Inventario | InventaXo";
+    document.title = isMachineOutputMode ? `Asignar a Resorte ${slotTarget}` : "Inventario | Kymez App";
     loadInventory();
   }, [isMachineOutputMode]);
 

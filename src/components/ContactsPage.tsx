@@ -37,7 +37,7 @@ const ContactsPage = ({ table, title, description, emptyLabel }: Props) => {
     const { data } = await (supabase as any).from(table).select("*").order("created_at", { ascending: false });
     setList((data as any) || []);
   };
-  useEffect(() => { document.title = `${title} · InventaXo`; load(); /* eslint-disable-next-line */ }, [table]);
+  useEffect(() => { document.title = `${title} · Kymez App`; load(); /* eslint-disable-next-line */ }, [table]);
 
   const openNew = () => {
     setEditing(null);

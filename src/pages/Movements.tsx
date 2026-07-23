@@ -88,7 +88,7 @@ const Movements = () => {
   const [editForm, setEditForm] = useState({ concept: "", customer: "", payment_method: "Efectivo", employee_id: "" });
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { document.title = "Movimientos · InventaXo"; }, []);
+  useEffect(() => { document.title = "Movimientos · Kymez App"; }, []);
 
   const range = useMemo(() => {
     const now = new Date();
@@ -455,7 +455,7 @@ const Movements = () => {
       const { data } = await (supabase as any).from("company_profile").select("*").eq("user_id", user.id).maybeSingle();
       company = data;
     }
-    const brandName = company?.business_name || "InventaXo";
+    const brandName = company?.business_name || "Kymez App";
     const escape = (s: string) => String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] || c));
     const headerHtml = `
       <h2>${escape(brandName)}</h2>

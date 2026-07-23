@@ -22,7 +22,7 @@ const Auth = () => {
 
   // 1. Verificamos si ya existe un Token válido guardado en el navegador
   useEffect(() => {
-    document.title = "Ingresar | InventaXo";
+    document.title = "Ingresar | Kymez App";
     const token = localStorage.getItem("token");
     if (token) {
       navigate("/app", { replace: true });
@@ -85,7 +85,7 @@ const Auth = () => {
             <Boxes className="h-5 w-5 text-primary-deep" />
           </div>
           <span className="font-display text-2xl font-bold text-primary-foreground">
-            InventaXo
+         Kymez App
           </span>
         </Link>
         <div className="bg-card rounded-2xl shadow-elegant p-8">

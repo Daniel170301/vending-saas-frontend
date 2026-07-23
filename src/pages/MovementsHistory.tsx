@@ -17,7 +17,7 @@ const MovementsHistory = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
 
-  useEffect(() => { document.title = "Historial deudas · InventaXo"; }, []);
+  useEffect(() => { document.title = "Historial deudas · Kymez App"; }, []);
 
   const load = async () => {
     setLoading(true);

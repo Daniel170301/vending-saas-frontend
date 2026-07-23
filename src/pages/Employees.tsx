@@ -14,7 +14,7 @@ const Employees = () => {
   const [list, setList] = useState<Employee[]>([]);
   const [name, setName] = useState("");
 
-  useEffect(() => { document.title = "Empleados · InventaXo"; load(); }, []);
+  useEffect(() => { document.title = "Empleados · Kymez App"; load(); }, []);
 
   const load = async () => {
     const { data } = await supabase.from("employees").select("id, name, active").order("name");
