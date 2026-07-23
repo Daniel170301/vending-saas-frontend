@@ -14,6 +14,9 @@ import { Plus, Wallet, Boxes, Pencil, CheckCircle2, Trash2, Coffee, ArrowLeft } 
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { Download } from "lucide-react";
 
 type Spring = { id: string; label: string; capacity: number; product_id: string | null; sale_price: number; current_qty: number };
 type Tray = { id: string; label: string; springs: Spring[] };
@@ -253,11 +256,112 @@ useEffect(() => {
   const totalDebt = useMemo(() => debts.reduce((a, d) => a + Number(d.total || 0), 0), [debts]);
   const productName = (id: string | null) => products.find((p) => p.id === id)?.name || "";
 
+const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    const ahora = new Date();
+    const fecha = ahora.toLocaleDateString();
+    const hora = ahora.toLocaleTimeString().replace(/:/g, '-');
+
+    // 1. Variables para el análisis financiero
+    let ingresosTotales = 0;
+    let gananciaTotal = 0;
+    const diasSet = new Set();
+
+    // 2. Preparar filas y calcular totales dinámicamente
+    const tableRows = list.map((v) => {
+      const fechaVentaDate = new Date(v.sold_at);
+      diasSet.add(fechaVentaDate.toLocaleDateString());
+      
+      const fechaVenta = fechaVentaDate.toLocaleString();
+      const maquina = v.machines?.name || v.machine_id || "-";
+      const producto = v.products?.name || v.nombre_producto || "-";
+      
+      const precioVenta = Number(v.unit_price) || 0;
+      
+      // Ajuste: Estimamos 60% de costo base si 'unit_cost' no viene del backend aún
+      const costo = Number(v.unit_cost) || (precioVenta * 0.6); 
+      const ganancia = precioVenta - costo;
+
+      ingresosTotales += precioVenta;
+      gananciaTotal += ganancia;
+
+      return [
+        fechaVenta,
+        maquina,
+        producto,
+        `S/ ${costo.toFixed(2)}`,
+        `S/ ${precioVenta.toFixed(2)}`,
+        `S/ ${ganancia.toFixed(2)}`,
+        v.source || "-"
+      ];
+    });
+
+    const diasActivos = diasSet.size || 1;
+    const promedioDiario = ingresosTotales / diasActivos;
+
+    // 3. Cabecera Estética
+    doc.setFontSize(22);
+    doc.setTextColor(4, 120, 87); 
+    doc.text("Reporte de Ventas y Rentabilidad", 14, 22);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Kymaz App - Generado el: ${fecha} a las ${ahora.toLocaleTimeString()}`, 14, 30);
+
+    // 4. Resumen Financiero Avanzado (Lo que el dueño quiere ver)
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(`Total Transacciones: ${list.length} ventas exitosas`, 14, 40);
+    doc.text(`Ingresos Brutos: S/ ${ingresosTotales.toFixed(2)}`, 14, 46);
+    doc.text(`Ganancia Neta: S/ ${gananciaTotal.toFixed(2)}`, 80, 46);
+    doc.text(`Promedio de Venta: S/ ${promedioDiario.toFixed(2)} diarios (en ${diasActivos} días de operación)`, 14, 52);
+
+    // 5. Configurar Tabla
+    const tableColumn = ["Fecha", "Máquina", "Producto", "Costo Base", "P. Venta", "Ganancia", "Fuente"];
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 58,
+      theme: 'striped',
+      headStyles: { fillColor: [4, 120, 87] },
+      styles: { fontSize: 8, cellPadding: 3 },
+      alternateRowStyles: { fillColor: [245, 250, 248] },
+      columnStyles: {
+        5: { fontStyle: 'bold', textColor: [4, 120, 87] } // Resalta la ganancia en verde
+      }
+    });
+
+    // 6. Descarga del archivo
+    doc.save(`KymazApp_Finanzas_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
+  };
+
+
   return (
     <div className="container py-8">
-      <PageHeader title="Ventas" description="Registro manual, consumos vending y deuda" actions={
-        <Button variant="hero" onClick={() => setPickerOpen(true)}><Plus className="h-4 w-4 mr-1" />Nueva venta</Button>
-      } />
+<PageHeader 
+  title="Ventas" 
+  description="Registro manual, consumos vending y deuda" 
+  actions={
+    <div className="flex gap-3">
+      {/* NUEVO BOTÓN DE PDF */}
+      <Button 
+        variant="outline" 
+        onClick={handleDownloadPDF}
+        className="text-emerald-700 border-emerald-700 hover:bg-emerald-50"
+      >
+        <Download className="mr-2 h-4 w-4" />
+        Descargar Reporte
+      </Button>
+
+      {/* TU BOTÓN ORIGINAL */}
+      <Button variant="hero" onClick={() => setPickerOpen(true)}>
+        <Plus className="h-4 w-4 mx-1" />
+        Nueva venta
+      </Button>
+    </div>
+  } 
+/>
 
       <Card className="mb-6">
         {list.length === 0 ? (
