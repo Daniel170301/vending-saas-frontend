@@ -61,25 +61,32 @@ const newTray = (i: number, springsCount = 6): Tray => ({
   label: `Bandeja ${String.fromCharCode(65 + i)}`,
   springs: Array.from({ length: springsCount }, (_, j) => newSpring(j)),
 });
-const defaultLayout = (): Layout => ({ trays: Array.from({ length: 4 }, (_, i) => newTray(i, 6)) });
+const defaultLayout = (): Layout => ({ trays: Array.from({ length: 6 }, (_, i) => newTray(i, 6)) });
 
-// Migra layouts antiguos (sin campos de producto) a la nueva forma
+
+// Migra layouts antiguos a la nueva forma y fuerza 6 bandejas
 const normalize = (l: Layout | null | undefined): Layout => {
   if (!l || !Array.isArray(l.trays)) return defaultLayout();
-  return {
-    trays: l.trays.map((t) => ({
-      id: t.id || uid(),
-      label: t.label || "Bandeja",
-      springs: (t.springs || []).map((s: any) => ({
-        id: s.id || uid(),
-        label: s.label || "R",
-        capacity: Number(s.capacity) || 0,
-        product_id: s.product_id ?? null,
-        sale_price: Number(s.sale_price) || 0,
-        current_qty: Number(s.current_qty) || 0,
-      })),
+  
+  const bandejas = l.trays.map((t: any, index: number) => ({
+    id: t.id || uid(),
+    label: t.label || `Bandeja ${String.fromCharCode(65 + index)}`,
+    springs: (t.springs || []).map((s: any, sIndex: number) => ({
+      id: s.id || uid(),
+      label: s.label || `R${sIndex + 1}`,
+      capacity: Number(s.capacity) || 0,
+      product_id: s.product_id ?? null,
+      sale_price: Number(s.sale_price) || 0,
+      current_qty: Number(s.current_qty) || 0,
     })),
-  };
+  }));
+
+  // EL TRUCO: Si la máquina tiene menos de 6 bandejas guardadas, le agregamos las que faltan.
+  while (bandejas.length < 6) {
+    bandejas.push(newTray(bandejas.length, 6));
+  }
+
+  return { trays: bandejas };
 };
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 const Machines = () => {
