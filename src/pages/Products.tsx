@@ -711,7 +711,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
         <div className="space-y-6 mt-6">
 {/* LEEMOS LAS BANDEJAS REALES DE LA MÁQUINA DESDE LA BASE DE DATOS */}
     {(() => {
-      //const maquinaSeleccionada = machinesList.find((m) => m.id === macActual);
+     const maquinaSeleccionada = machinesList.find((m) => m.id === macActual);
       //const totalBandejas = maquinaSeleccionada?.layout?.trays?.length || 4;
       const totalBandejas = 6; // <-- ¡ESTA ES LA LÍNEA MÁGICA!
       return Array.from({ length: totalBandejas }, (_, i) => i + 1).map((numBandeja) => (
