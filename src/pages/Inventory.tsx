@@ -404,7 +404,7 @@ const Inventory = () => {
         </div>
       )}
 
-      {/* Lista de Productos */}
+{/* Lista de Productos */}
       {loading ? (
         <div className="text-center py-10 text-muted-foreground">Cargando inventario...</div>
       ) : filteredList.length === 0 ? (
@@ -415,29 +415,43 @@ const Inventory = () => {
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredList.map((p, index) => {
-            // Lógica de colores y barra de progreso basada en el Stock Mínimo
             const stock = Number(p.stock_warehouse) || 0;
             const min = Number(p.min_stock) || 0;
             
+            // FÓRMULA DE LAS 3 ZONAS
+            const maxRecomendado = min * 3;
             let borderColor = "border-slate-200";
-            let indicatorColor = "bg-emerald-500";
-            let fillPercentage = 100;
+            let indicatorColor = "bg-slate-500";
+            let fillPercentage = 0;
+            let statusLabel = "";
 
-            if (stock <= 0) {
-              // Sin stock (Rojo)
-              borderColor = "border-red-400";
-              indicatorColor = "bg-red-500";
-              fillPercentage = 0;
-            } else if (stock <= min) {
-              // Stock bajo / En alerta (Amarillo)
-              borderColor = "border-amber-400";
-              indicatorColor = "bg-amber-400";
-              fillPercentage = min > 0 ? (stock / min) * 50 : 50; // Llena hasta la mitad máximo
+            if (min === 0) {
+              // Caso especial: Si no configuró stock mínimo, solo avisamos si está en cero
+              if (stock <= 0) {
+                borderColor = "border-red-400"; indicatorColor = "bg-red-500"; fillPercentage = 0; statusLabel = "Sin stock";
+              } else {
+                borderColor = "border-emerald-400"; indicatorColor = "bg-emerald-500"; fillPercentage = 100; statusLabel = "Normal";
+              }
             } else {
-              // Stock saludable (Verde)
-              borderColor = "border-emerald-400";
-              indicatorColor = "bg-emerald-500";
-              fillPercentage = min > 0 ? Math.min(100, 50 + ((stock - min) / min) * 50) : 100;
+              // La barra de progreso se llena en base al máximo recomendado (SM * 3)
+              fillPercentage = Math.min(100, (stock / maxRecomendado) * 100);
+
+              if (stock <= min) {
+                // 1. ZONA DE ALERTA (Poca cantidad)
+                borderColor = "border-red-400";
+                indicatorColor = "bg-red-500";
+                statusLabel = "Comprar";
+              } else if (stock <= maxRecomendado) {
+                // 2. ZONA SEGURA (Operación normal)
+                borderColor = "border-emerald-400";
+                indicatorColor = "bg-emerald-500";
+                statusLabel = "Normal";
+              } else {
+                // 3. ZONA DE MÁXIMO (Exceso)
+                borderColor = "border-blue-400";
+                indicatorColor = "bg-blue-500";
+                statusLabel = "Exceso";
+              }
             }
 
             return (
@@ -466,15 +480,25 @@ const Inventory = () => {
                     <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Precio Venta</span>
                     <span className="font-bold text-slate-700">{fmtMoney(p.sale_price)}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Stock / Mínimo</span>
-                    <span className={`font-bold text-lg ${stock <= min ? (stock <= 0 ? 'text-red-500' : 'text-amber-500') : 'text-emerald-600'}`}>
+                  <div className="text-right flex flex-col items-end">
+                    <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">
+                      Stock / Mín (<span className={`font-bold ${
+                        statusLabel === 'Comprar' ? 'text-red-500' : 
+                        statusLabel === 'Exceso' ? 'text-blue-500' : 
+                        'text-emerald-500'
+                      }`}>{statusLabel}</span>)
+                    </span>
+                    <span className={`font-bold text-lg ${
+                      stock <= min ? 'text-red-500' : 
+                      stock > maxRecomendado ? 'text-blue-600' : 
+                      'text-emerald-600'
+                    }`}>
                       {stock} <span className="text-muted-foreground text-xs font-normal">/ {min}</span>
                     </span>
                   </div>
                 </div>
 
-                {/* BARRA DE PROGRESO INFERIOR (Estilo Planograma) */}
+                {/* BARRA DE PROGRESO */}
                 <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
                   <div 
                     className={`h-full ${indicatorColor} transition-all duration-500 ease-in-out`} 
