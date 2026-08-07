@@ -15,6 +15,7 @@ import {
 import { Package, Plus, Download, Search, Camera, FileSpreadsheet, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/lib/format";
+import { BarcodeScanner } from "@/components/BarcodeScanner"; // Ajusta la ruta según dónde lo guardastes
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx"; // NUEVO: Librería para Excel
@@ -50,6 +51,17 @@ const emptyForm: AlmacenProduct = {
 };
 
 const UNIT_TYPES = ["unidad", "caja", "paquete", "docena", "kilo", "litro", "ml"];
+// Función para convertir la imagen a texto (Base64)
+const convertToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader();
+    fileReader.readAsDataURL(file);
+    fileReader.onload = () => { resolve(fileReader.result as string); };
+    fileReader.onerror = (error) => { reject(error); };
+  });
+};
+
+
 
 const Inventory = () => {
   const [list, setList] = useState<AlmacenProduct[]>([]);
@@ -63,9 +75,28 @@ const Inventory = () => {
   const isMachineOutputMode = action === "machine_output" && slotTarget && macTarget;
   
   const [open, setOpen] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const [form, setForm] = useState<AlmacenProduct>(emptyForm);
   const [processing, setProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState(""); // NUEVO: Estado para búsqueda
+
+
+const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Opcional: Validar el tamaño del archivo (ejemplo: máximo 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("La imagen es muy grande. Máximo 2MB.");
+        return;
+      }
+      try {
+        const base64 = await convertToBase64(file);
+        setForm({ ...form, image_url: base64 });
+      } catch (error) {
+        toast.error("Error al procesar la imagen");
+      }
+    }
+  };
 
   // NUEVO: Extraer categorías únicas para el selector
   const existingCategories = useMemo(() => {
@@ -330,7 +361,11 @@ const Inventory = () => {
                 <Label>Código de Barras</Label>
                 <div className="flex gap-2">
                   <Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Ej. 7501000..." />
-                  <Button variant="outline" type="button" onClick={() => toast.info("Aquí puedes integrar react-html5-camera-photo")}>
+                  <Button 
+                    variant="outline" 
+                    type="button" 
+                    onClick={() => setShowScanner(true)} // AQUI ESTÁ EL CAMBIO
+                  >
                     <Camera className="h-4 w-4" />
                   </Button>
                 </div>
@@ -362,9 +397,52 @@ const Inventory = () => {
             </div>
 
             {/* NUEVO: URL de Imagen */}
-            <div>
-               <Label>URL de la Fotografía</Label>
-               <Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://ejemplo.com/imagen.jpg" />
+<div>
+              <Label>Fotografía del Producto</Label>
+              <div className="flex items-center gap-4 mt-2">
+                {/* Cuadro de previsualización de la imagen */}
+                <div className="w-24 h-24 border rounded-md flex items-center justify-center bg-slate-100 overflow-hidden shrink-0 border-dashed border-slate-300">
+                  {form.image_url ? (
+                    <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-slate-300" />
+                  )}
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                  {/* Botón que activa la cámara en el celular o archivos en PC */}
+                  <Label 
+                    htmlFor="camera-upload" 
+                    className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm text-center flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
+                  >
+                    <Camera className="w-4 h-4" /> 
+                    {form.image_url ? "Cambiar Foto" : "Tomar Foto / Galería"}
+                  </Label>
+                  
+                  {/* Input oculto que hace la magia de HTML5 */}
+                  <Input 
+                    id="camera-upload" 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment" 
+                    className="hidden" 
+                    onChange={handleImageChange}
+                  />
+                  
+                  {/* Botón para eliminar la imagen si ya hay una */}
+                  {form.image_url && (
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setForm({...form, image_url: ""})}
+                      className="text-red-500 border-red-200 hover:bg-red-50"
+                    >
+                      Quitar imagen
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-3 rounded-lg border">
@@ -416,8 +494,39 @@ const Inventory = () => {
             <Button onClick={saveProduct} disabled={processing}>{processing ? "Guardando..." : "Guardar Producto"}</Button>
           </DialogFooter>
         </DialogContent>
+
+{/* Modal para el Escáner de Código de Barras */}
+      <Dialog open={showScanner} onOpenChange={setShowScanner}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Escanear Código de Barras</DialogTitle>
+            <DialogDescription>Apunta la cámara al código de barras del producto.</DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {showScanner && (
+              <BarcodeScanner 
+                onScanSuccess={(text) => {
+                  // Cuando escanea exitosamente, actualizamos el formulario y cerramos la cámara
+                  setForm({ ...form, barcode: text });
+                  setShowScanner(false);
+                  toast.success("Código escaneado correctamente");
+                }} 
+              />
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowScanner(false)}>
+              Cerrar Cámara
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       </Dialog>
     </div>
+    
   );
 };
 
