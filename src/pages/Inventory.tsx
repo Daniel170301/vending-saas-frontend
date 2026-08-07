@@ -596,8 +596,8 @@ const Inventory = () => {
                 </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+{/* STOCKS Y TIPO DE UNIDAD (Ajustado a 3 columnas) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>Stock Actual</Label>
                 <Input disabled={!isEditingMode} type="number" value={form.stock_warehouse || ""} onChange={(e) => setForm({ ...form, stock_warehouse: parseInt(e.target.value) || 0 })} />
@@ -605,10 +605,6 @@ const Inventory = () => {
               <div>
                 <Label>Stock Mínimo</Label>
                 <Input disabled={!isEditingMode} type="number" value={form.min_stock || ""} onChange={(e) => setForm({ ...form, min_stock: parseInt(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label>Capacidad resorte</Label>
-                <Input disabled={!isEditingMode} type="number" value={form.capacidad || ""} onChange={(e) => setForm({ ...form, capacidad: parseInt(e.target.value) || 10 })} />
               </div>
               <div>
                 <Label>Tipo unidad</Label>
