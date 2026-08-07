@@ -10,9 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { fmtMoney, fmtNumber } from "@/lib/format";
-import { Camera, ImagePlus, Package, Plus, AlertTriangle, Tag, Download, FileSpreadsheet, FileText, ShoppingCart, Minus, X, Wallet } from "lucide-react";
+import { Search, Camera, ImagePlus, Package, Plus, AlertTriangle, Tag, Download, FileSpreadsheet, FileText, ShoppingCart, Minus, X, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -89,28 +90,37 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
 
-// NUEVO: Estado para editar un resorte que ya tiene producto
+// Estado para editar un resorte que ya tiene producto
   const [slotEditDialog, setSlotEditDialog] = useState({
     open: false,
     slot: "",
-    product: null,
+    product: null as any,
     newStock: ""
   });
 
-  // NUEVO: Función para guardar solo el stock nuevo en la máquina
-  const updateMachineStock = async () => {
-    const { slot, product, newStock } = slotEditDialog;
-    if (!product) return;
+  // NUEVOS ESTADOS PARA EL MODAL PROFESIONAL
+  const [reabastecerQty, setReabastecerQty] = useState("1");
+  const [mixtoForm, setMixtoForm] = useState({ name: "", price: "", qty: "" });
+
+  // FUNCION 1: REABASTECER (Suma a la máquina)
+  const handleReabastecer = async () => {
+    const { slot, product } = slotEditDialog;
+    if (!product || !macActual) return;
+    
+    const qtyToAdd = parseInt(reabastecerQty) || 0;
+    if (qtyToAdd <= 0) return toast.error("Ingresa una cantidad válida mayor a 0");
 
     setProcessing(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
+      const nuevoStockMaquina = (Number(product.stock) || 0) + qtyToAdd;
+
       const payload = {
         machine_id: macActual,
         codigo_motor: slot,
         nombre_producto: product.nombre_producto,
         precio: product.precio,
-        stock: parseInt(newStock) || 0,
+        stock: nuevoStockMaquina,
         capacidad: product.capacidad || 10
       };
 
@@ -119,23 +129,68 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
+      
       const data = await res.json();
       if (data.success) {
-        toast.success("Stock actualizado correctamente");
+        toast.success(`Se agregaron ${qtyToAdd} unidades al resorte`);
         setSlotEditDialog({ open: false, slot: "", product: null, newStock: "" });
-        load(); 
+        setReabastecerQty("1");
+        load();
       } else {
         toast.error(data.message || "Error al actualizar stock");
       }
     } catch (error) {
-      console.error(error);
       toast.error("Error de conexión");
     } finally {
       setProcessing(false);
     }
   };
 
+  // FUNCION 2: GUARDAR SURTIDO MIXTO
+  const handleMixto = async () => {
+    const { slot } = slotEditDialog;
+    if (!macActual || !slot) return;
+
+    const price = parseFloat(mixtoForm.price) || 0;
+    const qty = parseInt(mixtoForm.qty) || 0;
+
+    if (!mixtoForm.name.trim() || price <= 0 || qty <= 0) {
+      return toast.error("Completa todos los datos del surtido correctamente");
+    }
+
+    setProcessing(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const payload = {
+        machine_id: macActual,
+        codigo_motor: slot,
+        nombre_producto: mixtoForm.name.trim(),
+        precio: price,
+        stock: qty,
+        capacidad: 10 // Capacidad estándar
+      };
+
+      const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Surtido Mixto asignado al resorte");
+        setSlotEditDialog({ open: false, slot: "", product: null, newStock: "" });
+        setMixtoForm({ name: "", price: "", qty: "" });
+        load();
+      } else {
+        toast.error(data.message || "Error al crear surtido");
+      }
+    } catch (error) {
+      toast.error("Error de conexión");
+    } finally {
+      setProcessing(false);
+    }
+  };
   // NUEVO: Función para vaciar la ventana y redirigir al inventario
   const handleChangeProduct = () => {
     const { slot } = slotEditDialog;
@@ -1109,41 +1164,132 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
         </DialogContent>
       </Dialog>
         {/* NUEVO: Modal simplificado para editar stock o cambiar de producto */}
-      <Dialog open={slotEditDialog.open} onOpenChange={(o) => setSlotEditDialog({ ...slotEditDialog, open: o })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Gestionar Resorte {slotEditDialog.slot}</DialogTitle>
-            <DialogDescription>
-              Producto actual: <span className="font-bold text-primary">{slotEditDialog.product?.nombre_producto || slotEditDialog.product?.name}</span>
+{/* MODAL PROFESIONAL DE GESTIÓN DE RESORTE */}
+      <Dialog 
+        open={slotEditDialog.open} 
+        onOpenChange={(o) => {
+          if (!o) setSlotEditDialog({ ...slotEditDialog, open: false });
+        }}
+      >
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <div className="bg-emerald-600 p-6 text-white">
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <Package className="h-6 w-6 opacity-80" />
+              Resorte {slotEditDialog.slot}
+            </DialogTitle>
+            <DialogDescription className="text-emerald-50 mt-1 text-base">
+              Producto actual: <strong className="text-white font-bold">{slotEditDialog.product?.nombre_producto || "Vacío"}</strong>
+              <span className="ml-2 bg-emerald-500/50 px-2 py-0.5 rounded text-sm">
+                Stock: {slotEditDialog.product?.stock || 0}
+              </span>
             </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Stock Actual en Máquina</Label>
-              <Input
-                type="number"
-                min="0"
-                value={slotEditDialog.newStock}
-                onChange={(e) => setSlotEditDialog({ ...slotEditDialog, newStock: e.target.value })}
-              />
-            </div>
           </div>
-          <DialogFooter className="flex sm:justify-between w-full flex-col sm:flex-row gap-2">
-            {/* Botón a la izquierda: Cambiar producto */}
-            <Button variant="outline" className="border-primary text-primary hover:bg-primary/10" onClick={handleChangeProduct}>
-              Cambiar Producto
-            </Button>
-            
-            {/* Botones a la derecha: Cancelar y Guardar */}
-            <div className="flex gap-2 justify-end">
-              <Button variant="ghost" onClick={() => setSlotEditDialog({ open: false, slot: "", product: null, newStock: "" })}>
-                Cancelar
-              </Button>
-              <Button className="bg-primary text-white" onClick={updateMachineStock} disabled={processing}>
-                {processing ? "Guardando..." : "Actualizar Stock"}
-              </Button>
-            </div>
-          </DialogFooter>
+
+          <div className="p-4">
+            <Tabs defaultValue="reabastecer" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 bg-slate-100 mb-4">
+                <TabsTrigger value="reabastecer">Reabastecer</TabsTrigger>
+                <TabsTrigger value="cambiar">Cambiar</TabsTrigger>
+                <TabsTrigger value="mixto">Mixto</TabsTrigger>
+              </TabsList>
+
+              {/* 1. PESTAÑA DE REABASTECER */}
+              <TabsContent value="reabastecer" className="space-y-4 outline-none">
+                <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
+                  <Label className="text-emerald-800 text-sm">¿Cuántas unidades vas a ingresar a la máquina?</Label>
+                  <div className="flex items-center gap-4 mt-3">
+                    <Input 
+                      type="number" 
+                      min="1"
+                      value={reabastecerQty}
+                      onChange={(e) => setReabastecerQty(e.target.value)}
+                      className="text-xl font-bold w-24 text-center h-12 border-emerald-200 focus-visible:ring-emerald-500"
+                    />
+                    <span className="text-xs text-slate-500 leading-tight">
+                      Esta cantidad se sumará al resorte y <br/> 
+                      el sistema la restará automáticamente <br/> de tu almacén general.
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="ghost" onClick={() => setSlotEditDialog({ ...slotEditDialog, open: false })}>Cancelar</Button>
+                  <Button onClick={handleReabastecer} disabled={processing} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    {processing ? "Guardando..." : "Confirmar Reingreso"}
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* 2. PESTAÑA DE CAMBIAR PRODUCTO */}
+              <TabsContent value="cambiar" className="space-y-4 outline-none">
+                <div className="text-center py-6 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                  <div className="bg-white w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-slate-100">
+                    <Search className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <h4 className="font-semibold text-slate-700 mb-1">Buscar en el Inventario</h4>
+                  <p className="text-sm text-slate-500 mb-5 px-6">
+                    Serás redirigido a tu almacén. Podrás usar la cámara para escanear el nuevo producto o seleccionarlo de la lista.
+                  </p>
+                  <Button 
+                    onClick={handleChangeProduct}
+                    className="bg-slate-800 hover:bg-slate-900 text-white w-3/4"
+                  >
+                    Ir al Almacén
+                  </Button>
+                </div>
+              </TabsContent>
+
+              {/* 3. PESTAÑA DE SURTIDO MIXTO */}
+              <TabsContent value="mixto" className="space-y-4 outline-none">
+                <div className="bg-amber-50/50 p-4 rounded-lg border border-amber-100">
+                  <p className="text-xs text-amber-800 mb-4 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    Crea un surtido cuando pongas varios productos distintos (ej: Morochas y Lentejas) en este mismo resorte.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-amber-900 text-xs">Nombre del Surtido</Label>
+                      <Input 
+                        value={mixtoForm.name}
+                        onChange={(e) => setMixtoForm({...mixtoForm, name: e.target.value})}
+                        placeholder="Ej: Snacks Surtidos (Morocha/Lenteja)" 
+                        className="border-amber-200 mt-1.5 h-9" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-amber-900 text-xs">Precio Único (S/)</Label>
+                        <Input 
+                          type="number" 
+                          step="0.10" 
+                          value={mixtoForm.price}
+                          onChange={(e) => setMixtoForm({...mixtoForm, price: e.target.value})}
+                          placeholder="1.50" 
+                          className="border-amber-200 mt-1.5 h-9" 
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-amber-900 text-xs">Cantidad Total</Label>
+                        <Input 
+                          type="number" 
+                          value={mixtoForm.qty}
+                          onChange={(e) => setMixtoForm({...mixtoForm, qty: e.target.value})}
+                          placeholder="10" 
+                          className="border-amber-200 mt-1.5 h-9" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <Button variant="ghost" onClick={() => setSlotEditDialog({ ...slotEditDialog, open: false })}>Cancelar</Button>
+                  <Button onClick={handleMixto} disabled={processing} className="bg-amber-600 hover:bg-amber-700 text-white">
+                    {processing ? "Guardando..." : "Guardar Surtido"}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -392,14 +392,25 @@ const Inventory = () => {
             </Card>
           </div>
           
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar producto por nombre o código de barras..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 max-w-md"
-            />
+{/* BUSCADOR CON ESCÁNER INTEGRADO */}
+          <div className="flex gap-2 w-full max-w-md">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar por nombre o código..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+              onClick={() => setShowScanner(true)}
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Escanear
+            </Button>
           </div>
         </div>
       )}
