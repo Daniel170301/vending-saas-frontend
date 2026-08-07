@@ -306,7 +306,7 @@ const handleDownloadPDF = () => {
 
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Kymaz App - Generado el: ${fecha} a las ${ahora.toLocaleTimeString()}`, 14, 30);
+    doc.text(`Inventaxo - Generado el: ${fecha} a las ${ahora.toLocaleTimeString()}`, 14, 30);
 
     // 4. Resumen Financiero Avanzado (Lo que el dueño quiere ver)
     doc.setFontSize(10);
@@ -333,7 +333,7 @@ const handleDownloadPDF = () => {
     });
 
     // 6. Descarga del archivo
-    doc.save(`KymazApp_Finanzas_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
+    doc.save(`Inventaxo_Finanzas_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
   };
 
 

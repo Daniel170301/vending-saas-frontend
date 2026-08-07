@@ -328,7 +328,7 @@ const Inventory = () => {
       columnStyles: { 4: { fontStyle: 'bold', textColor: [4, 120, 87] } }
     });
     
-    doc.save(`KymezApp_Almacen_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
+    doc.save(`Inventaxo_Almacen_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
   };
 
   const handleDownloadExcel = () => {
@@ -414,41 +414,76 @@ const Inventory = () => {
         </Card>
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredList.map((p, index) => (
-            <Card
-              key={p.id || index}
-              onClick={() => handleProductClick(p)}
-              className="p-4 flex flex-col justify-between transition-all cursor-pointer hover:border-primary hover:shadow-md"
-            >
-              <div className="flex gap-4">
-                <div className="w-16 h-16 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden">
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <ImageIcon className="h-6 w-6 text-slate-300" />
-                  )}
+          {filteredList.map((p, index) => {
+            // Lógica de colores y barra de progreso basada en el Stock Mínimo
+            const stock = Number(p.stock_warehouse) || 0;
+            const min = Number(p.min_stock) || 0;
+            
+            let borderColor = "border-slate-200";
+            let indicatorColor = "bg-emerald-500";
+            let fillPercentage = 100;
+
+            if (stock <= 0) {
+              // Sin stock (Rojo)
+              borderColor = "border-red-400";
+              indicatorColor = "bg-red-500";
+              fillPercentage = 0;
+            } else if (stock <= min) {
+              // Stock bajo / En alerta (Amarillo)
+              borderColor = "border-amber-400";
+              indicatorColor = "bg-amber-400";
+              fillPercentage = min > 0 ? (stock / min) * 50 : 50; // Llena hasta la mitad máximo
+            } else {
+              // Stock saludable (Verde)
+              borderColor = "border-emerald-400";
+              indicatorColor = "bg-emerald-500";
+              fillPercentage = min > 0 ? Math.min(100, 50 + ((stock - min) / min) * 50) : 100;
+            }
+
+            return (
+              <Card
+                key={p.id || index}
+                onClick={() => handleProductClick(p)}
+                className={`p-4 flex flex-col justify-between transition-all cursor-pointer hover:shadow-md border-2 ${borderColor} bg-white relative overflow-hidden`}
+              >
+                <div className="flex gap-4">
+                  <div className="w-16 h-16 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden">
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="h-6 w-6 text-slate-300" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg leading-tight">{p.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">{p.category || "Sin categoría"}</p>
+                    {p.barcode && <p className="text-[10px] bg-slate-100 px-2 py-0.5 rounded inline-block mt-1">CB: {p.barcode}</p>}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg">{p.name}</h3>
-                  <p className="text-xs text-muted-foreground mb-1">{p.category || "Sin categoría"}</p>
-                  {p.barcode && <p className="text-[10px] bg-slate-100 px-2 py-0.5 rounded inline-block">CB: {p.barcode}</p>}
+                
+                <div className="flex justify-between items-end mt-4 pt-3 border-t border-slate-100">
+                  <div>
+                    <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Precio Venta</span>
+                    <span className="font-bold text-slate-700">{fmtMoney(p.sale_price)}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Stock / Mínimo</span>
+                    <span className={`font-bold text-lg ${stock <= min ? (stock <= 0 ? 'text-red-500' : 'text-amber-500') : 'text-emerald-600'}`}>
+                      {stock} <span className="text-muted-foreground text-xs font-normal">/ {min}</span>
+                    </span>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2 text-sm mt-4 border-t pt-3">
-                <div>
-                  <span className="block text-muted-foreground text-xs">Stock Bodega</span>
-                  <span className={`font-bold ${p.stock_warehouse <= p.min_stock ? 'text-red-500' : ''}`}>
-                    {p.stock_warehouse} {p.unit_type || 'un.'}
-                  </span>
+
+                {/* BARRA DE PROGRESO INFERIOR (Estilo Planograma) */}
+                <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                  <div 
+                    className={`h-full ${indicatorColor} transition-all duration-500 ease-in-out`} 
+                    style={{ width: `${fillPercentage}%` }}
+                  />
                 </div>
-                <div>
-                  <span className="block text-muted-foreground text-xs">Precio Base</span>
-                  <span className="font-bold text-emerald-600">{fmtMoney(p.sale_price)}</span>
-                </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 
