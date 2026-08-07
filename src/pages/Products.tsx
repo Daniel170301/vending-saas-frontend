@@ -775,14 +775,23 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
             </div>
 
             {/* CUADRÍCULA DE MÁQUINAS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {machinesList
                 .filter(m => (m.name || m.id).toLowerCase().includes(machineSearch.toLowerCase()))
                 .map((m) => {
                   
-                  // Aquí simulamos el estado. En el futuro esto vendrá de tu BD (m.estado_pago, m.estado_hardware)
-                  // Por ahora puedes cambiar manualmente esta variable a 'suspendida' o 'averiada' para ver los colores.
-                  const machineStatus: string = 'en_vivo';
+                  // 1. LÓGICA DINÁMICA DEL DOBLE CANDADO
+                  // Leemos la info real que viene de DBeaver/Node
+                  const pagoAlDia = m.pago_al_dia !== false; 
+                  const macroDroidActivo = m.macrodroid_activo !== false; 
+                  
+                  // Decidimos el estado
+                  let machineStatus = 'en_vivo';
+                  if (!pagoAlDia) {
+                    machineStatus = 'suspendida';
+                  } else if (!macroDroidActivo) {
+                    machineStatus = 'averiada';
+                  }
 
                   return (
                     <Card key={m.id} className="p-5 flex flex-col justify-between hover:border-emerald-500 hover:shadow-md transition-all bg-white border-slate-200">
@@ -806,7 +815,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
                           {machineStatus === 'averiada' && (
                             <span className="flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0">
                               <span className="w-2 h-2 rounded-full bg-slate-800"></span>
-                              Averiada
+                              Offline
                             </span>
                           )}
                         </div>
@@ -823,10 +832,16 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
                       
                       <Button 
                         onClick={() => setSearchParams({ action: action || "", mac: m.id })}
-                        className="w-full bg-slate-800 hover:bg-slate-900 text-white h-11"
-                        disabled={machineStatus === 'suspendida'} // Bloqueamos el botón si no ha pagado
+                        className={`w-full h-11 text-white ${
+                          machineStatus === 'en_vivo' 
+                            ? 'bg-slate-800 hover:bg-slate-900' 
+                            : 'bg-slate-400 cursor-not-allowed'
+                        }`}
+                        disabled={machineStatus === 'suspendida' || machineStatus === 'averiada'} 
                       >
-                        Abrir Planograma
+                        {machineStatus === 'suspendida' && "Acceso Bloqueado (Pago)"}
+                        {machineStatus === 'averiada' && "Máquina Offline"}
+                        {machineStatus === 'en_vivo' && "Abrir Planograma"}
                       </Button>
                     </Card>
                   );
