@@ -426,31 +426,31 @@ const Inventory = () => {
             let statusLabel = "";
 
             if (min === 0) {
-              // Caso especial: Si no configuró stock mínimo, solo avisamos si está en cero
+              // Caso especial: Si no configuró stock mínimo
               if (stock <= 0) {
-                borderColor = "border-red-400"; indicatorColor = "bg-red-500"; fillPercentage = 0; statusLabel = "Sin stock";
+                borderColor = "border-red-400"; indicatorColor = "bg-red-500"; fillPercentage = 0; statusLabel = "Bajo";
               } else {
-                borderColor = "border-emerald-400"; indicatorColor = "bg-emerald-500"; fillPercentage = 100; statusLabel = "Normal";
+                borderColor = "border-emerald-400"; indicatorColor = "bg-emerald-500"; fillPercentage = 100; statusLabel = "Alto";
               }
             } else {
               // La barra de progreso se llena en base al máximo recomendado (SM * 3)
               fillPercentage = Math.min(100, (stock / maxRecomendado) * 100);
 
               if (stock <= min) {
-                // 1. ZONA DE ALERTA (Poca cantidad)
+                // 1. ROJO: Cantidad Baja (Alerta)
                 borderColor = "border-red-400";
                 indicatorColor = "bg-red-500";
-                statusLabel = "Comprar";
+                statusLabel = "Bajo";
               } else if (stock <= maxRecomendado) {
-                // 2. ZONA SEGURA (Operación normal)
+                // 2. AMARILLO/NARANJA: Cantidad Intermedia
+                borderColor = "border-amber-400";
+                indicatorColor = "bg-amber-500"; 
+                statusLabel = "Intermedio";
+              } else {
+                // 3. VERDE: Cantidad Alta
                 borderColor = "border-emerald-400";
                 indicatorColor = "bg-emerald-500";
-                statusLabel = "Normal";
-              } else {
-                // 3. ZONA DE MÁXIMO (Exceso)
-                borderColor = "border-blue-400";
-                indicatorColor = "bg-blue-500";
-                statusLabel = "Exceso";
+                statusLabel = "Alto";
               }
             }
 
@@ -483,14 +483,14 @@ const Inventory = () => {
                   <div className="text-right flex flex-col items-end">
                     <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">
                       Stock / Mín (<span className={`font-bold ${
-                        statusLabel === 'Comprar' ? 'text-red-500' : 
-                        statusLabel === 'Exceso' ? 'text-blue-500' : 
+                        statusLabel === 'Bajo' ? 'text-red-500' : 
+                        statusLabel === 'Intermedio' ? 'text-amber-500' : 
                         'text-emerald-500'
                       }`}>{statusLabel}</span>)
                     </span>
                     <span className={`font-bold text-lg ${
-                      stock <= min ? 'text-red-500' : 
-                      stock > maxRecomendado ? 'text-blue-600' : 
+                      statusLabel === 'Bajo' ? 'text-red-500' : 
+                      statusLabel === 'Intermedio' ? 'text-amber-500' : 
                       'text-emerald-600'
                     }`}>
                       {stock} <span className="text-muted-foreground text-xs font-normal">/ {min}</span>
@@ -510,7 +510,6 @@ const Inventory = () => {
           })}
         </div>
       )}
-
       {/* MODAL PRINCIPAL (Vista y Edición) */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
