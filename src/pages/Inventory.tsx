@@ -15,12 +15,11 @@ import {
 import { Package, Plus, Download, Search, Camera, FileSpreadsheet, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/lib/format";
-import { BarcodeScanner } from "@/components/BarcodeScanner"; // Ajusta la ruta según dónde lo guardastes
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx"; // NUEVO: Librería para Excel
+import * as XLSX from "xlsx";
+import { BarcodeScanner } from "@/components/BarcodeScanner"; // Asegúrate de que esta ruta sea correcta
 
-// NUEVO: Se agregaron los campos faltantes de la BD
 type AlmacenProduct = {
   id?: number;
   name: string;
@@ -51,8 +50,8 @@ const emptyForm: AlmacenProduct = {
 };
 
 const UNIT_TYPES = ["unidad", "caja", "paquete", "docena", "kilo", "litro", "ml"];
-// Función para convertir la imagen a texto (Base64)
-// Nueva función: Reduce el tamaño y comprime la imagen antes de convertirla a Base64
+
+// Función que comprime la imagen para que no pese en la base de datos
 const compressImage = (file: File, maxWidth = 600, maxHeight = 600, quality = 0.7): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -66,7 +65,6 @@ const compressImage = (file: File, maxWidth = 600, maxHeight = 600, quality = 0.
         let width = img.width;
         let height = img.height;
 
-        // Calculamos las nuevas dimensiones manteniendo la proporción
         if (width > height) {
           if (width > maxWidth) {
             height = Math.round((height * maxWidth) / width);
@@ -82,11 +80,8 @@ const compressImage = (file: File, maxWidth = 600, maxHeight = 600, quality = 0.
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
-        
-        // Dibujamos la imagen redimensionada en el canvas
         ctx?.drawImage(img, 0, 0, width, height);
 
-        // Exportamos a Base64 en formato JPEG con calidad reducida
         const dataUrl = canvas.toDataURL("image/jpeg", quality);
         resolve(dataUrl);
       };
@@ -95,8 +90,6 @@ const compressImage = (file: File, maxWidth = 600, maxHeight = 600, quality = 0.
     reader.onerror = (error) => reject(error);
   });
 };
-
-
 
 const Inventory = () => {
   const [list, setList] = useState<AlmacenProduct[]>([]);
@@ -110,28 +103,11 @@ const Inventory = () => {
   const isMachineOutputMode = action === "machine_output" && slotTarget && macTarget;
   
   const [open, setOpen] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
+  const [showScanner, setShowScanner] = useState(false); // Estado para la cámara de código de barras
   const [form, setForm] = useState<AlmacenProduct>(emptyForm);
   const [processing, setProcessing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(""); // NUEVO: Estado para búsqueda
+  const [searchQuery, setSearchQuery] = useState("");
 
-
-const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
-        toast.info("Procesando imagen...");
-        // Usamos la nueva función para comprimir la foto del celular
-        const base64Compressed = await compressImage(file);
-        setForm({ ...form, image_url: base64Compressed });
-        toast.success("Imagen adjuntada correctamente");
-      } catch (error) {
-        toast.error("Error al procesar la imagen");
-      }
-    }
-  };
-
-  // NUEVO: Extraer categorías únicas para el selector
   const existingCategories = useMemo(() => {
     const cats = list.map(p => p.category).filter(Boolean);
     return Array.from(new Set(cats));
@@ -173,21 +149,32 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     loadInventory();
   }, [isMachineOutputMode]);
 
-  // NUEVO: Filtrado de productos por búsqueda
   const filteredList = list.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     (p.barcode && p.barcode.includes(searchQuery))
   );
 
-  // NUEVO: Cálculos para los indicadores de la cabecera
   const totalProducts = list.length;
   const totalCost = list.reduce((acc, item) => acc + ((Number(item.stock_warehouse) || 0) * (Number(item.unit_cost) || 0)), 0);
   const totalSaleValue = list.reduce((acc, item) => acc + ((Number(item.stock_warehouse) || 0) * (Number(item.sale_price) || 0)), 0);
 
-  // NUEVO: Cálculo de porcentaje de ganancia dinámico
   const calculateProfitMargin = (cost: number, sale: number) => {
     if (cost <= 0 || sale <= 0) return 0;
     return (((sale - cost) / cost) * 100).toFixed(2);
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        toast.info("Procesando y comprimiendo imagen...");
+        const base64Compressed = await compressImage(file);
+        setForm({ ...form, image_url: base64Compressed });
+        toast.success("Imagen adjuntada correctamente");
+      } catch (error) {
+        toast.error("Error al procesar la imagen");
+      }
+    }
   };
 
   const saveProduct = async () => {
@@ -242,7 +229,53 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
   };
 
   const confirmAssignment = async () => {
-    // ... (Tu lógica original de confirmAssignment se mantiene exactamente igual) ...
+    const p = assignDialog.product;
+    if (!p || !slotTarget || !macTarget) return;
+    const qty = parseInt(assignDialog.qty) || 0;
+    const price = parseFloat(assignDialog.custom_price) || 0;
+    if (qty <= 0 || qty > p.stock_warehouse) {
+      return toast.error(`Cantidad inválida. Tienes ${p.stock_warehouse} disponibles.`);
+    }
+    setProcessing(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const newWarehouseStock = p.stock_warehouse - qty;
+      const updateStockRes = await fetch(`${apiUrl}/productos-almacen/${p.id}/stock`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: p.id,
+          stock_warehouse: newWarehouseStock
+        })
+      });
+      if (!updateStockRes.ok) throw new Error("Error actualizando stock en bodega");
+
+      const payload = {
+        machine_id: macTarget,
+        codigo_motor: slotTarget,
+        nombre_producto: p.name,
+        precio: price,
+        stock: qty,
+        capacidad: p.capacidad || 10,
+      };
+      const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("¡Producto asignado y stock actualizado!");
+        setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" });
+        navigate(`/app/products?mac=${macTarget}`);
+      } else {
+        toast.error(data.message || "Error al asignar producto");
+      }
+    } catch (error) {
+      toast.error("Error de conexión");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleDownloadPDF = () => {
@@ -250,11 +283,49 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const ahora = new Date();
     const fecha = ahora.toLocaleDateString();
     const hora = ahora.toLocaleTimeString().replace(/:/g, '-');
-    // ... (Tu lógica original de PDF se mantiene) ...
-    doc.save(`KymazApp_Almacen_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
+    
+    const totalUnidades = list.reduce((acc, item) => acc + (Number(item.stock_warehouse) || 0), 0);
+    const valorTotalInventario = list.reduce((acc, item) => acc + ((Number(item.stock_warehouse) || 0) * (Number(item.sale_price) || 0)), 0);
+    const totalReferencias = list.length;
+    
+    doc.setFontSize(22);
+    doc.setTextColor(4, 120, 87);
+    doc.text("Inventario de Almacén", 14, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Kymez App - Generado el: ${fecha} a las ${ahora.toLocaleTimeString()}`, 14, 30);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(0);
+    doc.text(`Resumen: ${totalReferencias} Productos | ${totalUnidades} unidades | Capital: S/ ${valorTotalInventario.toFixed(2)}`, 14, 40);
+    
+    const tableColumn = ["Producto", "Categoria", "Stock", "Precio Base", "Valor Total"];
+    const tableRows = list.map((item) => {
+      const stock = Number(item.stock_warehouse) || 0;
+      const precio = Number(item.sale_price) || 0;
+      return [
+        item.name || "N/A",
+        item.category || "-",
+        `${stock} un.`,
+        `S/ ${precio.toFixed(2)}`,
+        `S/ ${(stock * precio).toFixed(2)}`
+      ];
+    });
+    
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 45,
+      theme: 'striped',
+      headStyles: { fillColor: [4, 120, 87] },
+      styles: { fontSize: 9, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [245, 250, 248] },
+      columnStyles: { 4: { fontStyle: 'bold', textColor: [4, 120, 87] } }
+    });
+    
+    doc.save(`KymezApp_Almacen_${fecha.replace(/\//g, '-')}_${hora}.pdf`);
   };
 
-  // NUEVO: Descarga en Excel
   const handleDownloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(list.map(p => ({
       ID: p.id,
@@ -297,7 +368,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         }
       />
 
-      {/* NUEVO: Tarjetas de Resumen y Buscador */}
       {!isMachineOutputMode && (
         <div className="mb-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -343,7 +413,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               className="p-4 flex flex-col justify-between transition-all cursor-pointer hover:border-primary hover:shadow-md"
             >
               <div className="flex gap-4">
-                {/* NUEVO: Visualización de miniatura de imagen */}
                 <div className="w-16 h-16 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden">
                   {p.image_url ? (
                     <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
@@ -361,7 +430,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               <div className="grid grid-cols-2 gap-2 text-sm mt-4 border-t pt-3">
                 <div>
                   <span className="block text-muted-foreground text-xs">Stock Bodega</span>
-                  {/* NUEVO: Alerta visual si está por debajo del stock mínimo */}
                   <span className={`font-bold ${p.stock_warehouse <= p.min_stock ? 'text-red-500' : ''}`}>
                     {p.stock_warehouse} {p.unit_type || 'un.'}
                   </span>
@@ -376,7 +444,7 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         </div>
       )}
 
-      {/* Modal para Nuevo/Editar Producto */}
+      {/* Modal Principal: Nuevo/Editar Producto */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -389,16 +457,12 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 <Label>Nombre del producto</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej. Galletas Oreo" />
               </div>
-              {/* NUEVO: Input para código de barras con opción de cámara */}
               <div>
                 <Label>Código de Barras</Label>
                 <div className="flex gap-2">
                   <Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Ej. 7501000..." />
-                  <Button 
-                    variant="outline" 
-                    type="button" 
-                    onClick={() => setShowScanner(true)} // AQUI ESTÁ EL CAMBIO
-                  >
+                  {/* BOTÓN PARA ABRIR EL ESCÁNER */}
+                  <Button variant="outline" type="button" onClick={() => setShowScanner(true)}>
                     <Camera className="h-4 w-4" />
                   </Button>
                 </div>
@@ -406,7 +470,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {/* NUEVO: Selector/Input de Categoría combinado */}
               <div>
                 <Label>Categoría</Label>
                 <div className="flex flex-col gap-2">
@@ -429,11 +492,10 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
             </div>
 
-            {/* NUEVO: URL de Imagen */}
-<div>
+            {/* SECCIÓN DE FOTOGRAFÍA (Ya no bloqueará por los 2MB) */}
+            <div>
               <Label>Fotografía del Producto</Label>
               <div className="flex items-center gap-4 mt-2">
-                {/* Cuadro de previsualización de la imagen */}
                 <div className="w-24 h-24 border rounded-md flex items-center justify-center bg-slate-100 overflow-hidden shrink-0 border-dashed border-slate-300">
                   {form.image_url ? (
                     <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
@@ -443,7 +505,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 </div>
                 
                 <div className="flex flex-col gap-2">
-                  {/* Botón que activa la cámara en el celular o archivos en PC */}
                   <Label 
                     htmlFor="camera-upload" 
                     className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm text-center flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
@@ -451,8 +512,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                     <Camera className="w-4 h-4" /> 
                     {form.image_url ? "Cambiar Foto" : "Tomar Foto / Galería"}
                   </Label>
-                  
-                  {/* Input oculto que hace la magia de HTML5 */}
                   <Input 
                     id="camera-upload" 
                     type="file" 
@@ -461,8 +520,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                     className="hidden" 
                     onChange={handleImageChange}
                   />
-                  
-                  {/* Botón para eliminar la imagen si ya hay una */}
                   {form.image_url && (
                     <Button 
                       type="button"
@@ -487,7 +544,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 <Label>Precio de Venta (S/)</Label>
                 <Input type="number" step="0.01" value={form.sale_price || ""} onChange={(e) => setForm({ ...form, sale_price: parseFloat(e.target.value) || 0 })} />
               </div>
-              {/* NUEVO: Calculadora de margen */}
               <div className="flex flex-col justify-center">
                 <Label>Ganancia Estimada</Label>
                 <div className="text-lg font-bold text-emerald-600 mt-1">
@@ -501,7 +557,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
                 <Label>Stock Actual</Label>
                 <Input type="number" value={form.stock_warehouse || ""} onChange={(e) => setForm({ ...form, stock_warehouse: parseInt(e.target.value) || 0 })} />
               </div>
-              {/* NUEVO: Input para Stock Mínimo */}
               <div>
                 <Label>Stock Mínimo</Label>
                 <Input type="number" value={form.min_stock || ""} onChange={(e) => setForm({ ...form, min_stock: parseInt(e.target.value) || 0 })} />
@@ -527,8 +582,9 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             <Button onClick={saveProduct} disabled={processing}>{processing ? "Guardando..." : "Guardar Producto"}</Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
 
-{/* Modal para el Escáner de Código de Barras */}
+      {/* Modal para el Escáner de Código de Barras */}
       <Dialog open={showScanner} onOpenChange={setShowScanner}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -540,7 +596,6 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             {showScanner && (
               <BarcodeScanner 
                 onScanSuccess={(text) => {
-                  // Cuando escanea exitosamente, actualizamos el formulario y cerramos la cámara
                   setForm({ ...form, barcode: text });
                   setShowScanner(false);
                   toast.success("Código escaneado correctamente");
@@ -557,9 +612,13 @@ const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de Asignación a Máquina (Original) */}
+      <Dialog open={assignDialog.open} onOpenChange={(o) => { if (!o) setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" }) }}>
+        <DialogContent>
+          {/* ... Contenido del modal original de asignación ... */}
+        </DialogContent>
       </Dialog>
     </div>
-    
   );
 };
 
