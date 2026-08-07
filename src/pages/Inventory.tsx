@@ -12,13 +12,14 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Package, Plus, Download, Search, Camera, FileSpreadsheet, Image as ImageIcon } from "lucide-react";
+// NUEVO: Importamos el icono del lápiz (Pencil)
+import { Package, Plus, Download, Search, Camera, FileSpreadsheet, Image as ImageIcon, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { fmtMoney } from "@/lib/format";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
-import { BarcodeScanner } from "@/components/BarcodeScanner"; // Asegúrate de que esta ruta sea correcta
+import { BarcodeScanner } from "@/components/BarcodeScanner";
 
 type AlmacenProduct = {
   id?: number;
@@ -51,7 +52,6 @@ const emptyForm: AlmacenProduct = {
 
 const UNIT_TYPES = ["unidad", "caja", "paquete", "docena", "kilo", "litro", "ml"];
 
-// Función que comprime la imagen para que no pese en la base de datos
 const compressImage = (file: File, maxWidth = 600, maxHeight = 600, quality = 0.7): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -103,7 +103,9 @@ const Inventory = () => {
   const isMachineOutputMode = action === "machine_output" && slotTarget && macTarget;
   
   const [open, setOpen] = useState(false);
-  const [showScanner, setShowScanner] = useState(false); // Estado para la cámara de código de barras
+  // NUEVO: Estado para saber si estamos editando o solo viendo
+  const [isEditingMode, setIsEditingMode] = useState(false); 
+  const [showScanner, setShowScanner] = useState(false);
   const [form, setForm] = useState<AlmacenProduct>(emptyForm);
   const [processing, setProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -224,6 +226,8 @@ const Inventory = () => {
       });
     } else {
       setForm(product);
+      // NUEVO: Si abrimos un producto existente, entra en MODO VISTA (no edición)
+      setIsEditingMode(false);
       setOpen(true);
     }
   };
@@ -279,6 +283,7 @@ const Inventory = () => {
   };
 
   const handleDownloadPDF = () => {
+    // ... (Mantén tu código de PDF exactamente igual) ...
     const doc = new jsPDF();
     const ahora = new Date();
     const fecha = ahora.toLocaleDateString();
@@ -360,7 +365,8 @@ const Inventory = () => {
               <Button variant="outline" onClick={handleDownloadPDF} className="text-emerald-700 border-emerald-700 hover:bg-emerald-50">
                 <Download className="mr-2 h-4 w-4" /> PDF
               </Button>
-              <Button className="bg-primary text-primary-foreground" onClick={() => { setForm(emptyForm); setOpen(true); }}>
+              {/* NUEVO: Al crear producto, activamos el modo edición por defecto */}
+              <Button className="bg-primary text-primary-foreground" onClick={() => { setForm(emptyForm); setIsEditingMode(true); setOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" /> Nuevo Producto
               </Button>
             </div>
@@ -368,6 +374,7 @@ const Inventory = () => {
         }
       />
 
+      {/* Tarjetas Superiores */}
       {!isMachineOutputMode && (
         <div className="mb-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -397,6 +404,7 @@ const Inventory = () => {
         </div>
       )}
 
+      {/* Lista de Productos */}
       {loading ? (
         <div className="text-center py-10 text-muted-foreground">Cargando inventario...</div>
       ) : filteredList.length === 0 ? (
@@ -444,27 +452,47 @@ const Inventory = () => {
         </div>
       )}
 
-      {/* Modal Principal: Nuevo/Editar Producto */}
+      {/* MODAL PRINCIPAL (Vista y Edición) */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{form.id ? "Editar Producto" : "Añadir Nuevo Producto al Almacén"}</DialogTitle>
+          {/* NUEVO: Header con el botón de editar integrado */}
+          <DialogHeader className="flex flex-row items-center gap-4 pr-6">
+            <DialogTitle className="flex-1 text-xl">
+              {!form.id ? "Añadir Nuevo Producto" : (isEditingMode ? "Editar Producto" : "Detalles del Producto")}
+            </DialogTitle>
+            {/* El botón de editar solo aparece si el producto ya existe y no estamos editándolo */}
+            {form.id && !isEditingMode && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditingMode(true)}
+                className="h-8 gap-2 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Editar
+              </Button>
+            )}
           </DialogHeader>
+
           <div className="space-y-4 py-4">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Nombre del producto</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej. Galletas Oreo" />
+                {/* NUEVO: Todos los inputs tienen el atributo disabled={!isEditingMode} */}
+                <Input disabled={!isEditingMode} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej. Galletas Oreo" />
               </div>
               <div>
                 <Label>Código de Barras</Label>
                 <div className="flex gap-2">
-                  <Input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Ej. 7501000..." />
-                  {/* BOTÓN PARA ABRIR EL ESCÁNER */}
-                  <Button variant="outline" type="button" onClick={() => setShowScanner(true)}>
-                    <Camera className="h-4 w-4" />
-                  </Button>
+                  <Input disabled={!isEditingMode} value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} placeholder="Ej. 7501000..." />
+                  {/* El botón de escáner solo se muestra si estamos editando */}
+                  {isEditingMode && (
+                    <Button variant="outline" type="button" onClick={() => setShowScanner(true)}>
+                      <Camera className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -474,6 +502,7 @@ const Inventory = () => {
                 <Label>Categoría</Label>
                 <div className="flex flex-col gap-2">
                   <Input 
+                    disabled={!isEditingMode}
                     value={form.category} 
                     onChange={(e) => setForm({ ...form, category: e.target.value })} 
                     placeholder="Escribe o selecciona..." 
@@ -488,11 +517,11 @@ const Inventory = () => {
               </div>
               <div>
                 <Label>Subcategoría</Label>
-                <Input value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
+                <Input disabled={!isEditingMode} value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })} />
               </div>
             </div>
 
-            {/* SECCIÓN DE FOTOGRAFÍA (Ya no bloqueará por los 2MB) */}
+            {/* SECCIÓN DE FOTOGRAFÍA */}
             <div>
               <Label>Fotografía del Producto</Label>
               <div className="flex items-center gap-4 mt-2">
@@ -504,45 +533,48 @@ const Inventory = () => {
                   )}
                 </div>
                 
-                <div className="flex flex-col gap-2">
-                  <Label 
-                    htmlFor="camera-upload" 
-                    className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm text-center flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
-                  >
-                    <Camera className="w-4 h-4" /> 
-                    {form.image_url ? "Cambiar Foto" : "Tomar Foto / Galería"}
-                  </Label>
-                  <Input 
-                    id="camera-upload" 
-                    type="file" 
-                    accept="image/*" 
-                    capture="environment" 
-                    className="hidden" 
-                    onChange={handleImageChange}
-                  />
-                  {form.image_url && (
-                    <Button 
-                      type="button"
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setForm({...form, image_url: ""})}
-                      className="text-red-500 border-red-200 hover:bg-red-50"
+                {/* Los botones de subir foto solo se muestran si estamos en modo edición */}
+                {isEditingMode && (
+                  <div className="flex flex-col gap-2">
+                    <Label 
+                      htmlFor="camera-upload" 
+                      className="cursor-pointer bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm text-center flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors"
                     >
-                      Quitar imagen
-                    </Button>
-                  )}
-                </div>
+                      <Camera className="w-4 h-4" /> 
+                      {form.image_url ? "Cambiar Foto" : "Tomar Foto / Galería"}
+                    </Label>
+                    <Input 
+                      id="camera-upload" 
+                      type="file" 
+                      accept="image/*" 
+                      capture="environment" 
+                      className="hidden" 
+                      onChange={handleImageChange}
+                    />
+                    {form.image_url && (
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setForm({...form, image_url: ""})}
+                        className="text-red-500 border-red-200 hover:bg-red-50"
+                      >
+                        Quitar imagen
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-3 rounded-lg border">
               <div>
                 <Label>Costo Unitario (S/)</Label>
-                <Input type="number" step="0.01" value={form.unit_cost || ""} onChange={(e) => setForm({ ...form, unit_cost: parseFloat(e.target.value) || 0 })} />
+                <Input disabled={!isEditingMode} type="number" step="0.01" value={form.unit_cost || ""} onChange={(e) => setForm({ ...form, unit_cost: parseFloat(e.target.value) || 0 })} />
               </div>
               <div>
                 <Label>Precio de Venta (S/)</Label>
-                <Input type="number" step="0.01" value={form.sale_price || ""} onChange={(e) => setForm({ ...form, sale_price: parseFloat(e.target.value) || 0 })} />
+                <Input disabled={!isEditingMode} type="number" step="0.01" value={form.sale_price || ""} onChange={(e) => setForm({ ...form, sale_price: parseFloat(e.target.value) || 0 })} />
               </div>
               <div className="flex flex-col justify-center">
                 <Label>Ganancia Estimada</Label>
@@ -555,19 +587,19 @@ const Inventory = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label>Stock Actual</Label>
-                <Input type="number" value={form.stock_warehouse || ""} onChange={(e) => setForm({ ...form, stock_warehouse: parseInt(e.target.value) || 0 })} />
+                <Input disabled={!isEditingMode} type="number" value={form.stock_warehouse || ""} onChange={(e) => setForm({ ...form, stock_warehouse: parseInt(e.target.value) || 0 })} />
               </div>
               <div>
                 <Label>Stock Mínimo</Label>
-                <Input type="number" value={form.min_stock || ""} onChange={(e) => setForm({ ...form, min_stock: parseInt(e.target.value) || 0 })} />
+                <Input disabled={!isEditingMode} type="number" value={form.min_stock || ""} onChange={(e) => setForm({ ...form, min_stock: parseInt(e.target.value) || 0 })} />
               </div>
               <div>
                 <Label>Capacidad resorte</Label>
-                <Input type="number" value={form.capacidad || ""} onChange={(e) => setForm({ ...form, capacidad: parseInt(e.target.value) || 10 })} />
+                <Input disabled={!isEditingMode} type="number" value={form.capacidad || ""} onChange={(e) => setForm({ ...form, capacidad: parseInt(e.target.value) || 10 })} />
               </div>
               <div>
                 <Label>Tipo unidad</Label>
-                <Select value={form.unit_type} onValueChange={(v) => setForm({ ...form, unit_type: v })}>
+                <Select disabled={!isEditingMode} value={form.unit_type} onValueChange={(v) => setForm({ ...form, unit_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {UNIT_TYPES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
@@ -577,9 +609,16 @@ const Inventory = () => {
             </div>
           </div>
           
+          {/* NUEVO: Los botones del final cambian según el modo */}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={saveProduct} disabled={processing}>{processing ? "Guardando..." : "Guardar Producto"}</Button>
+            {!isEditingMode ? (
+              <Button onClick={() => setOpen(false)} className="w-full sm:w-auto">Cerrar</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button onClick={saveProduct} disabled={processing}>{processing ? "Guardando..." : "Guardar Producto"}</Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -614,9 +653,7 @@ const Inventory = () => {
 
       {/* Modal de Asignación a Máquina (Original) */}
       <Dialog open={assignDialog.open} onOpenChange={(o) => { if (!o) setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" }) }}>
-        <DialogContent>
-          {/* ... Contenido del modal original de asignación ... */}
-        </DialogContent>
+        {/* ... */}
       </Dialog>
     </div>
   );
