@@ -72,6 +72,7 @@ const Products = () => {
   // Capturamos la MAC dinámica de la URL
 const macActual = searchParams.get("mac");
 const [machinesList, setMachinesList] = useState([]); 
+console.log("Máquinas que llegaron a React:", machinesList);
   const [machineSearch, setMachineSearch] = useState(""); // NUEVO: Buscador de máquinas
   // Agregamos "machine_output" a los modos posibles
 const mode: "sale" | "expense" | "browse" | "machine_output" = 
