@@ -636,7 +636,7 @@ const Inventory = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal para el Escáner de Código de Barras */}
+{/* Modal para el Escáner de Código de Barras */}
       <Dialog open={showScanner} onOpenChange={setShowScanner}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -648,9 +648,27 @@ const Inventory = () => {
             {showScanner && (
               <BarcodeScanner 
                 onScanSuccess={(text) => {
-                  setForm({ ...form, barcode: text });
                   setShowScanner(false);
-                  toast.success("Código escaneado correctamente");
+                  
+                  // LÓGICA INTELIGENTE DEL ESCÁNER:
+                  if (isMachineOutputMode) {
+                    // 1. Si estamos enviando a la máquina: Busca el producto y abre la asignación directo
+                    const productoEncontrado = list.find(p => p.barcode === text);
+                    if (productoEncontrado) {
+                      handleProductClick(productoEncontrado);
+                      toast.success("¡Producto detectado!");
+                    } else {
+                      toast.error("Código no encontrado en el almacén.");
+                    }
+                  } else if (isEditingMode && open) {
+                    // 2. Si estamos creando/editando un producto: Pega el código en el formulario
+                    setForm({ ...form, barcode: text });
+                    toast.success("Código asignado al formulario.");
+                  } else {
+                    // 3. Si solo estamos en el almacén: Filtra la lista
+                    setSearchQuery(text);
+                    toast.success("Búsqueda aplicada.");
+                  }
                 }} 
               />
             )}
@@ -664,54 +682,59 @@ const Inventory = () => {
         </DialogContent>
       </Dialog>
 
-{/* Modal de Asignación a Máquina (Restaurado) */}
+{/* Modal de Asignación a Máquina (Mejorado Visualmente) */}
       <Dialog open={assignDialog.open} onOpenChange={(o) => { if (!o) setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" }) }}>
-        <DialogContent>
+        <DialogContent className="max-w-sm text-center">
           <DialogHeader>
-            <DialogTitle>Asignar a Resorte {slotTarget}</DialogTitle>
-            <DialogDescription>
-              Producto seleccionado: <strong className="text-emerald-700">{assignDialog.product?.name}</strong>
-            </DialogDescription>
+            <DialogTitle className="text-xl text-center">Asignar a Resorte {slotTarget}</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
+          {/* AQUÍ ESTÁ EL CAMBIO VISUAL GIGANTE */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl py-6 px-4 mt-2 mb-2 shadow-inner">
+            <span className="text-xs text-emerald-600/80 font-bold uppercase tracking-widest">Producto Seleccionado</span>
+            <h3 className="text-3xl md:text-4xl font-black text-emerald-800 mt-2 leading-tight">
+              {assignDialog.product?.name}
+            </h3>
+          </div>
+          
+          <div className="space-y-5 py-2 text-left">
             <div>
-              <Label>¿Cuántas unidades enviarás a la máquina?</Label>
-              <div className="flex items-center gap-2 mt-1">
+              <Label className="text-slate-600">¿Cuántas unidades enviarás a la máquina?</Label>
+              <div className="flex items-center gap-3 mt-2">
                 <Input 
                   type="number" 
                   min="1"
                   max={assignDialog.product?.stock_warehouse}
                   value={assignDialog.qty}
                   onChange={(e) => setAssignDialog({...assignDialog, qty: e.target.value})}
-                  className="w-24 text-center font-bold"
+                  className="w-24 text-center text-xl font-bold h-12 border-emerald-300 focus-visible:ring-emerald-500"
                 />
-                <span className="text-sm text-muted-foreground">
-                  (Stock disponible: {assignDialog.product?.stock_warehouse})
+                <span className="text-sm text-slate-500 leading-tight">
+                  (Stock en almacén: <br/><strong className="text-slate-700">{assignDialog.product?.stock_warehouse}</strong>)
                 </span>
               </div>
             </div>
             
             <div>
-              <Label>Precio de venta en este resorte (S/)</Label>
+              <Label className="text-slate-600">Precio de venta en este resorte (S/)</Label>
               <Input 
                 type="number" 
                 step="0.10"
                 value={assignDialog.custom_price}
                 onChange={(e) => setAssignDialog({...assignDialog, custom_price: e.target.value})}
-                className="mt-1 w-32"
+                className="mt-2 w-full text-lg h-11"
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1.5">
                 Este precio solo aplicará para la máquina.
               </p>
             </div>
           </div>
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" })}>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-2">
+            <Button variant="outline" className="w-full sm:w-auto h-11" onClick={() => setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" })}>
               Cancelar
             </Button>
-            <Button onClick={confirmAssignment} disabled={processing} className="bg-emerald-600 text-white hover:bg-emerald-700">
+            <Button onClick={confirmAssignment} disabled={processing} className="w-full sm:w-auto bg-emerald-600 text-white hover:bg-emerald-700 text-lg h-11">
               {processing ? "Asignando..." : "Confirmar Asignación"}
             </Button>
           </DialogFooter>
