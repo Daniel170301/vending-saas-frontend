@@ -103,12 +103,22 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
   const [mixtoForm, setMixtoForm] = useState({ name: "", price: "", qty: "" });
 
   // FUNCION 1: REABASTECER (Suma a la máquina)
+// FUNCION 1: REABASTECER (Suma a la máquina)
   const handleReabastecer = async () => {
     const { slot, product } = slotEditDialog;
     if (!product || !macActual) return;
     
     const qtyToAdd = parseInt(reabastecerQty) || 0;
     if (qtyToAdd <= 0) return toast.error("Ingresa una cantidad válida mayor a 0");
+
+    const capacidadMaxima = product.capacidad || 10;
+    const nuevoStockMaquina = (Number(product.stock) || 0) + qtyToAdd;
+
+    // NUEVO: Freno matemático inteligente
+    if (nuevoStockMaquina > capacidadMaxima) {
+      const espacioDisponible = capacidadMaxima - (Number(product.stock) || 0);
+      return toast.error(`¡Advertencia! Solo queda espacio para ${espacioDisponible} unidades (Capacidad máx: ${capacidadMaxima}).`);
+    }
 
     setProcessing(true);
     try {

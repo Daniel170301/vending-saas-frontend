@@ -232,14 +232,23 @@ const Inventory = () => {
     }
   };
 
-  const confirmAssignment = async () => {
+const confirmAssignment = async () => {
     const p = assignDialog.product;
     if (!p || !slotTarget || !macTarget) return;
+    
     const qty = parseInt(assignDialog.qty) || 0;
     const price = parseFloat(assignDialog.custom_price) || 0;
+    const capacidadMaxima = p.capacidad || 10; // Leemos la capacidad
+
     if (qty <= 0 || qty > p.stock_warehouse) {
-      return toast.error(`Cantidad inválida. Tienes ${p.stock_warehouse} disponibles.`);
+      return toast.error(`Cantidad inválida. Tienes ${p.stock_warehouse} disponibles en almacén.`);
     }
+
+    // NUEVO: Freno de capacidad
+    if (qty > capacidadMaxima) {
+      return toast.error(`¡Advertencia! No puedes asignar ${qty}. La capacidad máxima del resorte es ${capacidadMaxima}.`);
+    }
+
     setProcessing(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
