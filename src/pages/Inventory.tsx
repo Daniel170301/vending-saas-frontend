@@ -249,6 +249,7 @@ const confirmAssignment = async () => {
       return toast.error(`¡Advertencia! No puedes asignar ${qty}. La capacidad máxima del resorte es ${capacidadMaxima}.`);
     }
 
+
     setProcessing(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL;

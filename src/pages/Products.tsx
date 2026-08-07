@@ -10,8 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { fmtMoney, fmtNumber } from "@/lib/format";
-import { Search, Camera, ImagePlus, Package, Plus, AlertTriangle, Tag, Download, FileSpreadsheet, FileText, ShoppingCart, Minus, X, Wallet } from "lucide-react";
-import { toast } from "sonner";
+import { Search, ArrowLeft, Camera, ImagePlus, Package, Plus, AlertTriangle, Tag, Download, FileSpreadsheet, FileText, ShoppingCart, Minus, X, Wallet } from "lucide-react";import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as XLSX from "xlsx";
@@ -72,7 +71,8 @@ const Products = () => {
 
   // Capturamos la MAC dinámica de la URL
 const macActual = searchParams.get("mac");
-const [machinesList, setMachinesList] = useState([]); // Lista de máquinas para el selector
+const [machinesList, setMachinesList] = useState([]); 
+  const [machineSearch, setMachineSearch] = useState(""); // NUEVO: Buscador de máquinas
   // Agregamos "machine_output" a los modos posibles
 const mode: "sale" | "expense" | "browse" | "machine_output" = 
   action === "sale" ? "sale" : 
@@ -684,48 +684,42 @@ const headerTitle = mode === "sale" ? "Selecciona productos a vender" : mode ===
 const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === "expense" ? "Registra una compra y aumenta stock": "Distribución de productos y resortes por máquina";
   return (
     <div className="container py-8 pb-32">
-      <PageHeader title={headerTitle} description={headerDesc} actions={
-        mode === "browse" ? (
-          <div className="flex gap-2 items-center">
-            {/* NUEVO SELECTOR DE MÁQUINAS */}
-        <Select 
-          value={macActual} 
-          onValueChange={(val) => setSearchParams({ action: action || "", mac: val })}
-        >
-          <SelectTrigger className="w-[250px] bg-white">
-            <SelectValue placeholder="Selecciona una máquina..." />
-          </SelectTrigger>
-          <SelectContent>
-            {machinesList.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name || m.id}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {/* Tus botones de exportar que ya tenías */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" title="Descargar inventario">
-              <Download className="h-4 w-4" />
+<PageHeader 
+        title={headerTitle} 
+        description={headerDesc}
+        actions={
+          mode === "browse" ? (
+            <div className="flex gap-2 items-center">
+              {/* NUEVO: Botón de volver a la lista de máquinas */}
+              {macActual && (
+                <Button variant="outline" onClick={() => setSearchParams({})}>
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Volver a lista
+                </Button>
+              )}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" title="Descargar inventario">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportExcel}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportPDF}>
+                    <FileText className="h-4 w-4 mr-2" />PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" onClick={exitMode} >
+              <X className="h-4 w-4 mr-1" />Cancelar
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={exportExcel}>
-              <FileSpreadsheet className="h-4 w-4 mr-2" />Excel
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={exportPDF}>
-              <FileText className="h-4 w-4 mr-2" />PDF
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>      
-          </div>
-        ) : (
-          <Button variant="outline" size="sm" onClick={exitMode}>
-            <X className="h-4 w-4 mr-1" />Cancelar
-          </Button>
-        )
-      } />
+          )
+        }
+      />
 
       {mode === "browse" && (
         <div className="grid gap-3 grid-cols-2 mb-3">
@@ -766,14 +760,89 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
         </div>
       )}
 
-      {!macActual ? (  
-        <Card className="p-12 text-center mt-6">
-          <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <p className="text-muted-foreground font-medium text-lg">Por favor, selecciona una máquina arriba</p>
-          <p className="text-sm text-muted-foreground mt-1">El planograma se cargará automáticamente.</p>
-        </Card>
-      ) : (
-        <div className="space-y-6 mt-6">
+{!macActual ? (
+          <div className="space-y-6 mt-6">
+            {/* BUSCADOR DE MÁQUINAS */}
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar máquina por nombre..." 
+                value={machineSearch}
+                onChange={(e) => setMachineSearch(e.target.value)}
+                className="pl-10 h-11"
+              />
+            </div>
+
+            {/* CUADRÍCULA DE MÁQUINAS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {machinesList
+                .filter(m => (m.name || m.id).toLowerCase().includes(machineSearch.toLowerCase()))
+                .map((m) => {
+                  
+                  // Aquí simulamos el estado. En el futuro esto vendrá de tu BD (m.estado_pago, m.estado_hardware)
+                  // Por ahora puedes cambiar manualmente esta variable a 'suspendida' o 'averiada' para ver los colores.
+                  const machineStatus: string = 'en_vivo';
+
+                  return (
+                    <Card key={m.id} className="p-5 flex flex-col justify-between hover:border-emerald-500 hover:shadow-md transition-all bg-white border-slate-200">
+                      <div>
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="font-bold text-xl text-slate-800 leading-tight pr-2">{m.name || m.id}</h3>
+                          
+                          {/* SISTEMA DE ETIQUETAS (BADGES) DE ESTADO */}
+                          {machineStatus === 'en_vivo' && (
+                            <span className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                              En vivo
+                            </span>
+                          )}
+                          {machineStatus === 'suspendida' && (
+                            <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0">
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                              Suspendida
+                            </span>
+                          )}
+                          {machineStatus === 'averiada' && (
+                            <span className="flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-300 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0">
+                              <span className="w-2 h-2 rounded-full bg-slate-800"></span>
+                              Averiada
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-1 mb-6">
+                          <p className="text-sm text-slate-500 flex items-center gap-2">
+                            <span className="font-medium text-slate-700">MAC:</span> {m.id}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            ID Máquina
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        onClick={() => setSearchParams({ action: action || "", mac: m.id })}
+                        className="w-full bg-slate-800 hover:bg-slate-900 text-white h-11"
+                        disabled={machineStatus === 'suspendida'} // Bloqueamos el botón si no ha pagado
+                      >
+                        Abrir Planograma
+                      </Button>
+                    </Card>
+                  );
+              })}
+              
+              {machinesList.length === 0 && (
+                <div className="col-span-full py-12 text-center border-2 border-dashed rounded-xl border-slate-200 bg-slate-50">
+                  <Package className="h-10 w-10 mx-auto text-slate-400 mb-3" />
+                  <h3 className="text-lg font-medium text-slate-700">No hay máquinas registradas</h3>
+                  <p className="text-sm text-slate-500">Vincula tu primera máquina ESP32 a la plataforma.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6 mt-6">
+            {/* AQUÍ SIGUE EL CÓDIGO DE LAS BANDEJAS REALES QUE YA TIENES */}
 {/* LEEMOS LAS BANDEJAS REALES DE LA MÁQUINA DESDE LA BASE DE DATOS */}
     {(() => {
      const maquinaSeleccionada = machinesList.find((m) => m.id === macActual);
