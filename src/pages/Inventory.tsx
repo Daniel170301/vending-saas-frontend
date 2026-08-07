@@ -52,12 +52,47 @@ const emptyForm: AlmacenProduct = {
 
 const UNIT_TYPES = ["unidad", "caja", "paquete", "docena", "kilo", "litro", "ml"];
 // Función para convertir la imagen a texto (Base64)
-const convertToBase64 = (file: File): Promise<string> => {
+// Nueva función: Reduce el tamaño y comprime la imagen antes de convertirla a Base64
+const compressImage = (file: File, maxWidth = 600, maxHeight = 600, quality = 0.7): Promise<string> => {
   return new Promise((resolve, reject) => {
-    const fileReader = new FileReader();
-    fileReader.readAsDataURL(file);
-    fileReader.onload = () => { resolve(fileReader.result as string); };
-    fileReader.onerror = (error) => { reject(error); };
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        // Calculamos las nuevas dimensiones manteniendo la proporción
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        
+        // Dibujamos la imagen redimensionada en el canvas
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Exportamos a Base64 en formato JPEG con calidad reducida
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
   });
 };
 
@@ -84,14 +119,12 @@ const Inventory = () => {
 const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Opcional: Validar el tamaño del archivo (ejemplo: máximo 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("La imagen es muy grande. Máximo 2MB.");
-        return;
-      }
       try {
-        const base64 = await convertToBase64(file);
-        setForm({ ...form, image_url: base64 });
+        toast.info("Procesando imagen...");
+        // Usamos la nueva función para comprimir la foto del celular
+        const base64Compressed = await compressImage(file);
+        setForm({ ...form, image_url: base64Compressed });
+        toast.success("Imagen adjuntada correctamente");
       } catch (error) {
         toast.error("Error al procesar la imagen");
       }
