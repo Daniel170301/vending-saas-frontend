@@ -374,7 +374,7 @@ const Inventory = () => {
         }
       />
 
-      {/* Tarjetas Superiores */}
+{/* Tarjetas Superiores (Solo se ven en el inventario normal) */}
       {!isMachineOutputMode && (
         <div className="mb-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -391,30 +391,31 @@ const Inventory = () => {
               <p className="text-2xl font-bold text-emerald-600">{fmtMoney(totalSaleValue)}</p>
             </Card>
           </div>
-          
-{/* BUSCADOR CON ESCÁNER INTEGRADO */}
-          <div className="flex gap-2 w-full max-w-md">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nombre o código..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button 
-              variant="outline" 
-              className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-              onClick={() => setShowScanner(true)}
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              Escanear
-            </Button>
-          </div>
         </div>
       )}
 
+      {/* BUSCADOR CON ESCÁNER INTEGRADO (Visible siempre) */}
+      <div className="flex gap-2 w-full max-w-md mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input 
+            placeholder="Buscar por nombre o código..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button 
+          variant="outline" 
+          className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+          onClick={() => setShowScanner(true)}
+        >
+          <Camera className="h-4 w-4 mr-2" />
+          Escanear
+        </Button>
+      </div>
+
+    
 {/* Lista de Productos */}
       {loading ? (
         <div className="text-center py-10 text-muted-foreground">Cargando inventario...</div>
@@ -425,100 +426,43 @@ const Inventory = () => {
         </Card>
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredList.map((p, index) => {
-            const stock = Number(p.stock_warehouse) || 0;
-            const min = Number(p.min_stock) || 0;
-            
-            // FÓRMULA DE LAS 3 ZONAS
-            const maxRecomendado = min * 3;
-            let borderColor = "border-slate-200";
-            let indicatorColor = "bg-slate-500";
-            let fillPercentage = 0;
-            let statusLabel = "";
-
-            if (min === 0) {
-              // Caso especial: Si no configuró stock mínimo
-              if (stock <= 0) {
-                borderColor = "border-red-400"; indicatorColor = "bg-red-500"; fillPercentage = 0; statusLabel = "Bajo";
-              } else {
-                borderColor = "border-emerald-400"; indicatorColor = "bg-emerald-500"; fillPercentage = 100; statusLabel = "Alto";
-              }
-            } else {
-              // La barra de progreso se llena en base al máximo recomendado (SM * 3)
-              fillPercentage = Math.min(100, (stock / maxRecomendado) * 100);
-
-              if (stock <= min) {
-                // 1. ROJO: Cantidad Baja (Alerta)
-                borderColor = "border-red-400";
-                indicatorColor = "bg-red-500";
-                statusLabel = "Bajo";
-              } else if (stock <= maxRecomendado) {
-                // 2. AMARILLO/NARANJA: Cantidad Intermedia
-                borderColor = "border-amber-400";
-                indicatorColor = "bg-amber-500"; 
-                statusLabel = "Intermedio";
-              } else {
-                // 3. VERDE: Cantidad Alta
-                borderColor = "border-emerald-400";
-                indicatorColor = "bg-emerald-500";
-                statusLabel = "Alto";
-              }
-            }
-
-            return (
-              <Card
-                key={p.id || index}
-                onClick={() => handleProductClick(p)}
-                className={`p-4 flex flex-col justify-between transition-all cursor-pointer hover:shadow-md border-2 ${borderColor} bg-white relative overflow-hidden`}
-              >
-                <div className="flex gap-4">
-                  <div className="w-16 h-16 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden">
-                    {p.image_url ? (
-                      <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon className="h-6 w-6 text-slate-300" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg leading-tight">{p.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{p.category || "Sin categoría"}</p>
-                    {p.barcode && <p className="text-[10px] bg-slate-100 px-2 py-0.5 rounded inline-block mt-1">CB: {p.barcode}</p>}
-                  </div>
+          {filteredList.map((p, index) => (
+            <Card
+              key={p.id || index}
+              onClick={() => handleProductClick(p)}
+              className="p-4 flex flex-col justify-between transition-all cursor-pointer hover:border-emerald-500 hover:shadow-md bg-white border border-slate-200 relative overflow-hidden"
+            >
+              <div className="flex gap-4">
+                <div className="w-16 h-16 bg-slate-100 rounded flex items-center justify-center shrink-0 overflow-hidden">
+                  {p.image_url ? (
+                    <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="h-6 w-6 text-slate-300" />
+                  )}
                 </div>
-                
-                <div className="flex justify-between items-end mt-4 pt-3 border-t border-slate-100">
-                  <div>
-                    <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Precio Venta</span>
-                    <span className="font-bold text-slate-700">{fmtMoney(p.sale_price)}</span>
-                  </div>
-                  <div className="text-right flex flex-col items-end">
-                    <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">
-                      Stock / Mín (<span className={`font-bold ${
-                        statusLabel === 'Bajo' ? 'text-red-500' : 
-                        statusLabel === 'Intermedio' ? 'text-amber-500' : 
-                        'text-emerald-500'
-                      }`}>{statusLabel}</span>)
-                    </span>
-                    <span className={`font-bold text-lg ${
-                      statusLabel === 'Bajo' ? 'text-red-500' : 
-                      statusLabel === 'Intermedio' ? 'text-amber-500' : 
-                      'text-emerald-600'
-                    }`}>
-                      {stock} <span className="text-muted-foreground text-xs font-normal">/ {min}</span>
-                    </span>
-                  </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg leading-tight">{p.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{p.category || "Sin categoría"}</p>
+                  {p.barcode && <p className="text-[10px] bg-slate-100 px-2 py-0.5 rounded inline-block mt-1">CB: {p.barcode}</p>}
                 </div>
-
-                {/* BARRA DE PROGRESO */}
-                <div className="w-full h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
-                  <div 
-                    className={`h-full ${indicatorColor} transition-all duration-500 ease-in-out`} 
-                    style={{ width: `${fillPercentage}%` }}
-                  />
+              </div>
+              
+              <div className="flex justify-between items-end mt-4 pt-3 border-t border-slate-100">
+                <div>
+                  <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Precio Venta</span>
+                  <span className="font-bold text-slate-700">{fmtMoney(p.sale_price)}</span>
                 </div>
-              </Card>
-            );
-          })}
+                <div className="text-right flex flex-col items-end">
+                  <span className="block text-muted-foreground text-[10px] uppercase tracking-wider mb-1">
+                    Stock / Mín
+                  </span>
+                  <span className="font-bold text-lg text-slate-800">
+                    {p.stock_warehouse || 0} <span className="text-muted-foreground text-xs font-normal">/ {p.min_stock || 0}</span>
+                  </span>
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
       )}
       {/* MODAL PRINCIPAL (Vista y Edición) */}
@@ -720,9 +664,58 @@ const Inventory = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Asignación a Máquina (Original) */}
+{/* Modal de Asignación a Máquina (Restaurado) */}
       <Dialog open={assignDialog.open} onOpenChange={(o) => { if (!o) setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" }) }}>
-        {/* ... */}
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar a Resorte {slotTarget}</DialogTitle>
+            <DialogDescription>
+              Producto seleccionado: <strong className="text-emerald-700">{assignDialog.product?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>¿Cuántas unidades enviarás a la máquina?</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input 
+                  type="number" 
+                  min="1"
+                  max={assignDialog.product?.stock_warehouse}
+                  value={assignDialog.qty}
+                  onChange={(e) => setAssignDialog({...assignDialog, qty: e.target.value})}
+                  className="w-24 text-center font-bold"
+                />
+                <span className="text-sm text-muted-foreground">
+                  (Stock disponible: {assignDialog.product?.stock_warehouse})
+                </span>
+              </div>
+            </div>
+            
+            <div>
+              <Label>Precio de venta en este resorte (S/)</Label>
+              <Input 
+                type="number" 
+                step="0.10"
+                value={assignDialog.custom_price}
+                onChange={(e) => setAssignDialog({...assignDialog, custom_price: e.target.value})}
+                className="mt-1 w-32"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Este precio solo aplicará para la máquina.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialog({ open: false, product: null, qty: "1", custom_price: "" })}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmAssignment} disabled={processing} className="bg-emerald-600 text-white hover:bg-emerald-700">
+              {processing ? "Asignando..." : "Confirmar Asignación"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   );
