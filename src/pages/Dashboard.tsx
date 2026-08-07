@@ -33,7 +33,7 @@ const Dashboard = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
-    document.title = "Dashboard · Kymez App";
+    document.title = "Dashboard · Inventaxo";
     load();
   }, [user]);
 

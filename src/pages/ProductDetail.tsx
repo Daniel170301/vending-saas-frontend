@@ -54,7 +54,7 @@ const ProductDetail = () => {
     setLoading(false);
   };
 
-  useEffect(() => { document.title = "Producto · Kymez App"; load(); }, [id]);
+  useEffect(() => { document.title = "Producto · Inventaxo"; load(); }, [id]);
 
   const uploadImage = async (file: File) => {
     setUploading(true);

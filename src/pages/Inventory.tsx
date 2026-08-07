@@ -147,7 +147,7 @@ const Inventory = () => {
   };
 
   useEffect(() => {
-    document.title = isMachineOutputMode ? `Asignar a Resorte ${slotTarget}` : "Inventario | Kymez App";
+    document.title = isMachineOutputMode ? `Asignar a Resorte ${slotTarget}` : "Inventario | Inventaxo";
     loadInventory();
   }, [isMachineOutputMode]);
 
@@ -298,7 +298,7 @@ const Inventory = () => {
     doc.text("Inventario de Almacén", 14, 22);
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Kymez App - Generado el: ${fecha} a las ${ahora.toLocaleTimeString()}`, 14, 30);
+    doc.text(`Inventaxo - Generado el: ${fecha} a las ${ahora.toLocaleTimeString()}`, 14, 30);
     
     doc.setFontSize(11);
     doc.setTextColor(0);
