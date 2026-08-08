@@ -298,7 +298,15 @@ const Machines = () => {
   const handleSaveSpring = async () => {
     if (!springModal.codigo_motor) return toast.error("El código de motor es obligatorio");
     if (springModal.capacidad < 1) return toast.error("La capacidad debe ser mayor a 0");
-
+// --- NUEVO CANDADO: EVITAR DUPLICADOS ---
+    if (springModal.isNew) {
+      // Buscamos si ya existe ese código en la lista
+      const duplicado = productosModal.some(p => String(p.codigo_motor) === String(springModal.codigo_motor));
+      if (duplicado) {
+        return toast.error(`El resorte M${springModal.codigo_motor} ya existe. Por favor usa otro número.`);
+      }
+    }
+    // ----------------------------------------
     const macDetectada = viewing?.code || viewing?.id;
     const payload = {
       machine_id: macDetectada,
@@ -339,7 +347,35 @@ const Machines = () => {
       toast.error("Error conectando con el servidor");
     }
   };
+  //funcion para eliminar
+const handleDeleteSpring = async () => {
+    if (!confirm(`¿Estás seguro de eliminar el resorte M${springModal.codigo_motor}?`)) return;
 
+    const macDetectada = viewing?.code || viewing?.id;
+
+    try {
+      // Petición DELETE a tu servidor backend
+      const res = await fetch(`${apiUrl}/inventario/${macDetectada}/${springModal.codigo_motor}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (data.success || res.ok) {
+        toast.success(`Resorte M${springModal.codigo_motor} eliminado`);
+        
+        // Lo quitamos de la vista instantáneamente
+        setProductosModal(prev => prev.filter(p => p.codigo_motor !== springModal.codigo_motor));
+        
+        // Cerramos la ventana
+        setSpringModal(prev => ({ ...prev, open: false }));
+      } else {
+        toast.error(data.message || "Error al eliminar en la Base de Datos");
+      }
+    } catch (error) {
+      toast.error("Error conectando con el servidor");
+    }
+  };
   // Totales en tiempo real
   const totalsLive = list.reduce(
     (acc, m) => {
@@ -878,13 +914,30 @@ const Machines = () => {
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-2">
-            <Button variant="outline" className="h-11 px-6 font-semibold text-slate-500" onClick={() => setSpringModal(prev => ({ ...prev, open: false }))}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSaveSpring} className="h-11 px-6 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">
-              Guardar
-            </Button>
+<div className="flex justify-between items-center mt-2">
+            {/* Botón de Eliminar: Solo aparece si NO es un resorte nuevo */}
+            {!springModal.isNew ? (
+              <Button 
+                variant="ghost" 
+                className="h-11 px-3 text-red-500 hover:bg-red-50 hover:text-red-600" 
+                onClick={handleDeleteSpring}
+                title="Eliminar resorte"
+              >
+                <Trash2 className="h-5 w-5" />
+              </Button>
+            ) : (
+              <div></div> /* Div vacío para mantener la alineación a la derecha */
+            )}
+
+            {/* Botones Cancelar y Guardar */}
+            <div className="flex gap-3">
+              <Button variant="outline" className="h-11 px-6 font-semibold text-slate-500" onClick={() => setSpringModal(prev => ({ ...prev, open: false }))}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveSpring} className="h-11 px-6 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">
+                Guardar
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
