@@ -735,29 +735,53 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
   <span className="text-xs text-slate-400">{cantidadVendida} productos vendidos</span>
 </div>
 
-{/* Tarjeta de Ganancia Neta (Opcional) */}
-<div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-center shadow-sm">
-  <span className="text-sm text-slate-500 mb-1">Ganancia Estimada</span>
-  <div className="text-2xl font-bold text-blue-600">
-    S/ {gananciaTotal.toFixed(2)}
-  </div>
-  <span className="text-xs text-slate-400">Ingresos menos costo de almacén</span>
-</div>
-      {mode === "browse" && (
-        <div className="grid gap-3 grid-cols-2 mb-3">
-          <Card className="p-3">
-            <div className="text-xs text-muted-foreground">Valor total</div>
-            <div className="text-xl font-bold text-primary mt-0.5">{fmtMoney(totalInventoryValue)}</div>
-            <div className="text-[11px] text-muted-foreground">{fmtNumber(totalUnits)} unidades</div>
+{mode === "browse" && (
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 mb-4">
+          {/* 1. Ventas Acumuladas */}
+          <Card className="p-4 flex flex-col justify-between">
+            <div className="text-xs text-muted-foreground">Ventas Acumuladas</div>
+            <div className="text-xl font-bold text-emerald-600 mt-1">
+              S/ {totalVentas.toFixed(2)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              {cantidadVendida} productos vendidos
+            </div>
           </Card>
-          <Card className="p-3">
+
+          {/* 2. Ganancia Estimada */}
+          <Card className="p-4 flex flex-col justify-between">
+            <div className="text-xs text-muted-foreground">Ganancia Estimada</div>
+            <div className="text-xl font-bold text-blue-600 mt-1">
+              S/ {gananciaTotal.toFixed(2)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              Margen estimado
+            </div>
+          </Card>
+
+          {/* 3. Valor Total de Inventario */}
+          <Card className="p-4 flex flex-col justify-between">
+            <div className="text-xs text-muted-foreground">Valor total</div>
+            <div className="text-xl font-bold text-primary mt-1">
+              {fmtMoney(totalInventoryValue)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              {fmtNumber(totalUnits)} unidades
+            </div>
+          </Card>
+
+          {/* 4. Referencias / Productos */}
+          <Card className="p-4 flex flex-col justify-between">
             <div className="text-xs text-muted-foreground">Referencias</div>
-            <div className="text-xl font-bold mt-0.5">{fmtNumber(list.length)}</div>
-            <div className="text-[11px] text-muted-foreground">productos</div>
+            <div className="text-xl font-bold mt-1">
+              {fmtNumber(list.length)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              productos
+            </div>
           </Card>
         </div>
       )}
-
 
       {usedCategories.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1 scrollbar-thin">
@@ -782,7 +806,6 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
           ))}
         </div>
       )}
-
 {!macActual ? (
           <div className="space-y-6 mt-6">
             {/* BUSCADOR DE MÁQUINAS */}
