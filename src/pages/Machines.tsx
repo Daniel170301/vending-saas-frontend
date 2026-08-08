@@ -295,18 +295,18 @@ const Machines = () => {
     });
   };
 
-  const handleSaveSpring = async () => {
+const handleSaveSpring = async () => {
     if (!springModal.codigo_motor) return toast.error("El código de motor es obligatorio");
     if (springModal.capacidad < 1) return toast.error("La capacidad debe ser mayor a 0");
-// --- NUEVO CANDADO: EVITAR DUPLICADOS ---
+
+    // Candado anti-duplicados
     if (springModal.isNew) {
-      // Buscamos si ya existe ese código en la lista
       const duplicado = productosModal.some(p => String(p.codigo_motor) === String(springModal.codigo_motor));
       if (duplicado) {
-        return toast.error(`El resorte M${springModal.codigo_motor} ya existe. Por favor usa otro número.`);
+        return toast.error(`El resorte M${springModal.codigo_motor} ya existe. Usa otro número.`);
       }
     }
-    // ----------------------------------------
+
     const macDetectada = viewing?.code || viewing?.id;
     const payload = {
       machine_id: macDetectada,
@@ -323,57 +323,73 @@ const Machines = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
+
+      // 1. Verificamos si el servidor devolvió un error (Ej. 404 o 500)
+      if (!res.ok) {
+        console.error("Error del servidor HTTP:", res.status);
+        return toast.error(`El servidor devolvió un error ${res.status}. Revisa la consola de tu Node.js`);
+      }
+
+      // 2. Parseo seguro de JSON
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseError) {
+        console.error("El servidor no devolvió un JSON válido:", parseError);
+        return toast.error("Error: El servidor no devolvió datos válidos.");
+      }
       
       if (data.success) {
         toast.success(`Resorte M${springModal.codigo_motor} guardado correctamente`);
-        
         setProductosModal(prev => {
           const existe = prev.find(p => p.codigo_motor === springModal.codigo_motor);
           if (existe) {
-            // Si ya existe, solo actualizamos su capacidad en la pantalla
             return prev.map(p => p.codigo_motor === springModal.codigo_motor ? { ...p, capacidad: springModal.capacidad } : p);
           } else {
-            // SOLUCIÓN AL ERROR ROJO: Añadimos id y name temporales solo para que TypeScript sea feliz en la pantalla
             return [...prev, { ...payload, id: Math.random().toString(), name: "Vacío" }];
           }
         });
-        
         setSpringModal(prev => ({ ...prev, open: false }));
       } else {
-        toast.error("Error al guardar en Base de Datos");
+        toast.error(data.message || "Error al guardar en Base de Datos");
       }
     } catch (error) {
-      toast.error("Error conectando con el servidor");
+      console.error("Error de Red / Fetch:", error);
+      toast.error("Error de red conectando con el servidor");
     }
   };
-  //funcion para eliminar
-const handleDeleteSpring = async () => {
+
+  const handleDeleteSpring = async () => {
     if (!confirm(`¿Estás seguro de eliminar el resorte M${springModal.codigo_motor}?`)) return;
 
     const macDetectada = viewing?.code || viewing?.id;
 
     try {
-      // Petición DELETE a tu servidor backend
       const res = await fetch(`${apiUrl}/inventario/${macDetectada}/${springModal.codigo_motor}`, {
         method: 'DELETE',
       });
 
-      const data = await res.json();
-
-      if (data.success || res.ok) {
-        toast.success(`Resorte M${springModal.codigo_motor} eliminado`);
-        
-        // Lo quitamos de la vista instantáneamente
-        setProductosModal(prev => prev.filter(p => p.codigo_motor !== springModal.codigo_motor));
-        
-        // Cerramos la ventana
-        setSpringModal(prev => ({ ...prev, open: false }));
-      } else {
-        toast.error(data.message || "Error al eliminar en la Base de Datos");
+      // 1. Verificamos si la ruta de eliminar existe en tu backend
+      if (!res.ok) {
+        console.error("Error del servidor HTTP:", res.status);
+        return toast.error(`Error ${res.status}: ¿Creaste la ruta DELETE en tu servidor Node.js?`);
       }
+
+      // 2. Parseo seguro (por si el DELETE no devuelve JSON)
+      let data = {};
+      try {
+         data = await res.json();
+      } catch (e) {
+         // Si falla, no importa, a veces los DELETE devuelven vacío (204)
+      }
+
+      toast.success(`Resorte M${springModal.codigo_motor} eliminado`);
+      setProductosModal(prev => prev.filter(p => p.codigo_motor !== springModal.codigo_motor));
+      setSpringModal(prev => ({ ...prev, open: false }));
+
     } catch (error) {
-      toast.error("Error conectando con el servidor");
+      console.error("Error de Red / Fetch:", error);
+      toast.error("Error de red al intentar eliminar");
     }
   };
   // Totales en tiempo real
