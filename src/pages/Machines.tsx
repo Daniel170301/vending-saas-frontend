@@ -88,7 +88,6 @@ const Machines = () => {
   const { user } = useAuth();
   const [list, setList] = useState<any[]>([]);
   const [productosModal, setProductosModal] = useState<Product[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Machine | null>(null);
   const [form, setForm] = useState({
@@ -103,6 +102,16 @@ const Machines = () => {
   const [viewing, setViewing] = useState<Machine | null>(null);
   const [debtByMachine, setDebtByMachine] = useState<Record<string, { count: number; total: number }>>({});
   const [salesTodayByMachine, setSalesTodayByMachine] = useState<Record<string, { revenue: number; profit: number; units: number }>>({});
+
+  // ESTADO PARA EL NUEVO MODAL ELEGANTE DE RESORTES
+  const [springModal, setSpringModal] = useState<{
+    open: boolean;
+    isNew: boolean;
+    numBandeja: number;
+    codigo_motor: string;
+    capacidad: number;
+    originalData?: any;
+  }>({ open: false, isNew: true, numBandeja: 1, codigo_motor: "", capacidad: 10 });
 
   const load = async () => {
     if (!user?.email) return;
@@ -171,7 +180,6 @@ const Machines = () => {
   const openNew = () => {
     setEditing(null);
     setForm({
-      // Generamos un codigo interno oculto, la MAC real la administras en DBeaver
       name: "", code: Math.random().toString(16).slice(2, 14).toUpperCase(), location: "", coin_base: "",
       brand: "", model: "", plate: "",
       coin_enabled: false, coin_brand: "", coin_plate: "",
@@ -200,7 +208,6 @@ const Machines = () => {
 
   const save = async () => {
     try {
-      // 1. VALIDACIÓN ESTRICTA (Sin pedir el código MAC)
       if (!form.name.trim() || !form.location.trim() || !form.brand.trim() || !form.model.trim() || !form.plate.trim()) {
         return toast.error("Los campos Nombre, Ubicación, Marca, Modelo y Matrícula son obligatorios.");
       }
@@ -260,7 +267,80 @@ const Machines = () => {
     toast.success("Eliminada"); load();
   };
 
-  // Totales en tiempo real (todas las máquinas)
+  // --- FUNCIONES DEL NUEVO MODAL DE RESORTES ---
+  const handleOpenAddSpring = (numBandeja: number, resortesDeBandeja: any[]) => {
+    let nextPos = 0;
+    if (resortesDeBandeja.length > 0) {
+      const ultimos = resortesDeBandeja.map(p => Number(String(p.codigo_motor).slice(-1)));
+      nextPos = Math.max(...ultimos) + 1;
+    }
+    const sugerido = `${numBandeja}${nextPos <= 9 ? nextPos : 0}`;
+    setSpringModal({
+      open: true,
+      isNew: true,
+      numBandeja,
+      codigo_motor: sugerido,
+      capacidad: 10
+    });
+  };
+
+  const handleOpenEditSpring = (producto: any, numBandeja: number) => {
+    setSpringModal({
+      open: true,
+      isNew: false,
+      numBandeja,
+      codigo_motor: producto.codigo_motor,
+      capacidad: producto.capacidad ?? 10,
+      originalData: producto
+    });
+  };
+
+  const handleSaveSpring = async () => {
+    if (!springModal.codigo_motor) return toast.error("El código de motor es obligatorio");
+    if (springModal.capacidad < 1) return toast.error("La capacidad debe ser mayor a 0");
+
+    const macDetectada = viewing?.code || viewing?.id;
+    const payload = {
+      machine_id: macDetectada,
+      codigo_motor: springModal.codigo_motor,
+      nombre_producto: springModal.originalData?.nombre_producto || "",
+      precio: Number(springModal.originalData?.precio) || 0,
+      stock: Number(springModal.originalData?.stock) || 0,
+      capacidad: springModal.capacidad
+    };
+
+    try {
+      const res = await fetch(`${apiUrl}/inventario/actualizar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        toast.success(`Resorte M${springModal.codigo_motor} guardado correctamente`);
+        
+        setProductosModal(prev => {
+          const existe = prev.find(p => p.codigo_motor === springModal.codigo_motor);
+          if (existe) {
+            // Si ya existe, solo actualizamos su capacidad en la pantalla
+            return prev.map(p => p.codigo_motor === springModal.codigo_motor ? { ...p, capacidad: springModal.capacidad } : p);
+          } else {
+            // SOLUCIÓN AL ERROR ROJO: Añadimos id y name temporales solo para que TypeScript sea feliz en la pantalla
+            return [...prev, { ...payload, id: Math.random().toString(), name: "Vacío" }];
+          }
+        });
+        
+        setSpringModal(prev => ({ ...prev, open: false }));
+      } else {
+        toast.error("Error al guardar en Base de Datos");
+      }
+    } catch (error) {
+      toast.error("Error conectando con el servidor");
+    }
+  };
+
+  // Totales en tiempo real
   const totalsLive = list.reduce(
     (acc, m) => {
       const s = salesTodayByMachine[m.id] || { revenue: 0, profit: 0, units: 0 };
@@ -354,7 +434,6 @@ const Machines = () => {
     }];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(info), "Información");
     
-    // Omitimos inventario local viejo del excel para no causar confusiones
     const salesRows: any[] = (sales as any[]).map((s) => ({
       Fecha: new Date(s.sold_at).toLocaleString(),
       Producto: s.products?.name || s.concept || "-",
@@ -449,7 +528,7 @@ const Machines = () => {
   };
 
   return (
-    <div className="container py-8">
+    <div className="container py-8 pb-20">
       <PageHeader title="Máquinas" description="Tus máquinas expendedoras y su monedero base" actions={
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={downloadXLSX} disabled={!list.length}>
@@ -511,7 +590,6 @@ const Machines = () => {
               <Card key={m.id} className="p-5 gradient-card hover:shadow-soft transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    {/* MAC OCULTA AQUÍ TAMBIÉN */}
                     <h3 className="font-display text-lg font-semibold">{m.name}</h3>
                     {(m.brand || m.model) && (
                       <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -573,14 +651,12 @@ const Machines = () => {
         </div>
       )}
 
-      {/* Modal para Crear/Editar Máquina */}
+      {/* Modal para Crear/Editar Máquina (El Formulario) */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader> <DialogTitle>{editing ? "Editar máquina" : "Nueva máquina"}</DialogTitle></DialogHeader>
-
           {tab === "data" && (
             <div className="space-y-5">
-              {/* Identificación */}
               <div>
                 <h4 className="font-semibold text-sm mb-2 text-primary">Identificación</h4>
                 <div className="grid sm:grid-cols-2 gap-3">
@@ -595,7 +671,6 @@ const Machines = () => {
                 </div>
               </div>
 
-              {/* Máquina */}
               <div>
                 <h4 className="font-semibold text-sm mb-2 text-primary">Datos de la máquina</h4>
                 <div className="grid sm:grid-cols-3 gap-3">
@@ -605,70 +680,40 @@ const Machines = () => {
                 </div>
               </div>
 
-              {/* Monedero */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-sm text-primary flex items-center gap-1">
                     <Coins className="h-4 w-4" /> Monedero
                   </h4>
                   <label className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.coin_enabled}
-                      onChange={(e) => setForm({ ...form, coin_enabled: e.target.checked })}
-                      className="h-4 w-4 rounded accent-primary"
-                    />
+                    <input type="checkbox" checked={form.coin_enabled} onChange={(e) => setForm({ ...form, coin_enabled: e.target.checked })} className="h-4 w-4 rounded accent-primary" />
                     {form.coin_enabled ? "La máquina tiene monedero" : "Añadir monedero"}
                   </label>
                 </div>
                 {form.coin_enabled && (
                   <div className="grid sm:grid-cols-3 gap-3">
-                    <div>
-                      <Label>Marca del monedero</Label>
-                      <Input value={form.coin_brand} maxLength={60} onChange={(e) => setForm({ ...form, coin_brand: e.target.value })} placeholder="Ej: NRI" />
-                    </div>
-                    <div>
-                      <Label>Matrícula del monedero</Label>
-                      <Input value={form.coin_plate} maxLength={60} onChange={(e) => setForm({ ...form, coin_plate: e.target.value })} placeholder="N° de serie" />
-                    </div>
-                    <div>
-                      <Label>Base en dinero</Label>
-                      <Input type="number" value={form.coin_base} onChange={(e) => setForm({ ...form, coin_base: e.target.value })} placeholder="0.00" />
-                    </div>
+                    <div><Label>Marca del monedero</Label><Input value={form.coin_brand} maxLength={60} onChange={(e) => setForm({ ...form, coin_brand: e.target.value })} placeholder="Ej: NRI" /></div>
+                    <div><Label>Matrícula del monedero</Label><Input value={form.coin_plate} maxLength={60} onChange={(e) => setForm({ ...form, coin_plate: e.target.value })} placeholder="N° de serie" /></div>
+                    <div><Label>Base en dinero</Label><Input type="number" value={form.coin_base} onChange={(e) => setForm({ ...form, coin_base: e.target.value })} placeholder="0.00" /></div>
                   </div>
                 )}
               </div>
 
-              {/* Billetero */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold text-sm text-primary flex items-center gap-1">
                     <Banknote className="h-4 w-4" /> Billetero
                   </h4>
                   <label className="flex items-center gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.bill_enabled}
-                      onChange={(e) => setForm({ ...form, bill_enabled: e.target.checked })}
-                      className="h-4 w-4 rounded accent-primary"
-                    />
+                    <input type="checkbox" checked={form.bill_enabled} onChange={(e) => setForm({ ...form, bill_enabled: e.target.checked })} className="h-4 w-4 rounded accent-primary" />
                     {form.bill_enabled ? "La máquina tiene billetero" : "Añadir billetero"}
                   </label>
                 </div>
                 {form.bill_enabled && (
                   <div className="grid sm:grid-cols-3 gap-3">
-                    <div>
-                      <Label>Marca</Label>
-                      <Input value={form.bill_brand} maxLength={60} onChange={(e) => setForm({ ...form, bill_brand: e.target.value })} placeholder="Ej: ICT" />
-                    </div>
-                    <div>
-                      <Label>Modelo</Label>
-                      <Input value={form.bill_model} maxLength={60} onChange={(e) => setForm({ ...form, bill_model: e.target.value })} placeholder="Ej: BL-700" />
-                    </div>
-                    <div>
-                      <Label>Matrícula / Serie</Label>
-                      <Input value={form.bill_plate} maxLength={60} onChange={(e) => setForm({ ...form, bill_plate: e.target.value })} placeholder="N° de serie" />
-                    </div>
+                    <div><Label>Marca</Label><Input value={form.bill_brand} maxLength={60} onChange={(e) => setForm({ ...form, bill_brand: e.target.value })} placeholder="Ej: ICT" /></div>
+                    <div><Label>Modelo</Label><Input value={form.bill_model} maxLength={60} onChange={(e) => setForm({ ...form, bill_model: e.target.value })} placeholder="Ej: BL-700" /></div>
+                    <div><Label>Matrícula / Serie</Label><Input value={form.bill_plate} maxLength={60} onChange={(e) => setForm({ ...form, bill_plate: e.target.value })} placeholder="N° de serie" /></div>
                   </div>
                 )}
               </div>
@@ -678,7 +723,7 @@ const Machines = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Visor de máquina (solo lectura y ajuste de resortes) */}
+      {/* Visor de máquina (Modal del Ojito) */}
       <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -710,10 +755,7 @@ const Machines = () => {
                 <div className="grid sm:grid-cols-3 gap-2 text-xs">
                   <Card className="p-2">
                     <p className="text-muted-foreground text-[10px] mb-1">Máquina</p>
-                    {/* MAC ELIMINADA VISUALMENTE AQUÍ */}
-                    <div className="mb-1">
-                      <span className="font-semibold">{viewing.brand} {viewing.model}</span>
-                    </div>
+                    <div className="mb-1"><span className="font-semibold">{viewing.brand} {viewing.model}</span></div>
                     {viewing.plate && <p className="text-[10px] text-muted-foreground">S/N: {viewing.plate}</p>}
                   </Card>
                   <Card className="p-2">
@@ -735,11 +777,9 @@ const Machines = () => {
                   </Card>
                 </div>
 
-                {/* --- CONSTRUCTOR DE BANDEJAS DINÁMICO --- */}
+                {/* --- CONSTRUCTOR VISUAL DE BANDEJAS --- */}
                 <div className="space-y-6 mt-6">
                   {[1, 2, 3, 4, 5, 6].map((numBandeja) => {
-                    
-                    // Solo listamos los resortes que realmente existen en el backend
                     const resortesDeBandeja = productosModal
                       .filter(p => p.codigo_motor && String(p.codigo_motor).startsWith(String(numBandeja)))
                       .sort((a, b) => Number(a.codigo_motor) - Number(b.codigo_motor));
@@ -753,131 +793,34 @@ const Machines = () => {
 
                         <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                           
-                          {/* Resortes existentes */}
+                          {/* Resortes configurados: Limpios, sin íconos molestos */}
                           {resortesDeBandeja.map((producto) => {
                             const codigoMotor = producto.codigo_motor;
                             return (
                               <div
                                 key={`${codigoMotor}-${producto.capacidad ?? 10}`}
-                                className="border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative hover:bg-accent/50 transition-colors"
+                                onClick={() => handleOpenEditSpring(producto, numBandeja)}
+                                className="border-2 border-dashed rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative hover:bg-emerald-50 hover:border-emerald-300 transition-colors cursor-pointer group"
                               >
-                                {/* AQUI ESTÁ LA MAGIA VISUAL DE LA M (M10, M11) */}
                                 <span className="absolute top-2 text-xs font-bold text-emerald-600">
                                   M{codigoMotor}
-                               </span>
-                                
+                                </span>
                                 <div className="flex flex-col items-center justify-center w-full mt-2">
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">
                                     Capacidad
                                   </span>
-                                  <div className="flex items-center justify-center gap-1.5 mt-1">
-                                    <input
-                                      id={`cap-input-${codigoMotor}`}
-                                      type="number"
-                                      min="1"
-                                      className="w-14 h-9 text-center text-sm font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                      defaultValue={producto.capacidad ?? 10}
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          document.getElementById(`btn-save-${codigoMotor}`)?.click();
-                                        }
-                                      }}
-                                    />
-                                    <button
-                                      id={`btn-save-${codigoMotor}`}
-                                      type="button"
-                                      title="Guardar capacidad"
-                                      className="flex items-center justify-center w-9 h-9 text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all duration-200 shadow-sm"
-                                      onClick={async () => {
-                                        const inputEl = document.getElementById(`cap-input-${codigoMotor}`) as HTMLInputElement;
-                                        if (!inputEl) return;
-                                        const nuevaCapacidad = parseInt(inputEl.value, 10);
-                                        if (isNaN(nuevaCapacidad) || nuevaCapacidad < 1) return;
-                                        
-                                        const macDetectada = (viewing as any).code || (viewing as any).id;
-                                        try {
-                                          const payload = {
-                                            machine_id: macDetectada,
-                                            codigo_motor: codigoMotor, // Se manda "10", no "M10"
-                                            nombre_producto: producto.nombre_producto || "",
-                                            precio: Number(producto.precio) || 0,
-                                            stock: Number(producto.stock) || 0,
-                                            capacidad: nuevaCapacidad
-                                          };
-                                          const res = await fetch(`${apiUrl}/inventario/actualizar`, {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify(payload)
-                                          });
-                                          const data = await res.json();
-                                          if (data.success) {
-                                            toast.success(`Capacidad de M${codigoMotor} guardada`);
-                                            setProductosModal((prev) =>
-                                              prev.map((p) => p.codigo_motor === codigoMotor ? { ...p, capacidad: nuevaCapacidad } : p)
-                                            );
-                                          } else {
-                                            toast.error("Error al actualizar la capacidad");
-                                          }
-                                        } catch (error) {
-                                          toast.error("Error conectando con el servidor");
-                                        }
-                                      }}
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15.2 3H19a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.8" /><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" /><path d="M7 3v4a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V3" /></svg>
-                                    </button>
-                                  </div>
+                                  <span className="text-2xl font-black text-slate-700 group-hover:text-emerald-700 transition-colors">
+                                    {producto.capacidad ?? 10}
+                                  </span>
                                 </div>
                               </div>
                             );
                           })}
 
-                          {/* Botón Añadir Resorte (Conexión Directa al Backend) */}
+                          {/* Botón de "Añadir Resorte" */}
                           <button
                             type="button"
-                            onClick={async () => {
-                              // Calcular qué número de motor sigue (ej. 10, 11 -> 12)
-                              let nextPos = 0;
-                              if (resortesDeBandeja.length > 0) {
-                                const ultimos = resortesDeBandeja.map(p => Number(String(p.codigo_motor).slice(-1)));
-                                nextPos = Math.max(...ultimos) + 1;
-                              }
-                              
-                              if (nextPos > 9) {
-                                toast.error("Máximo de 10 resortes alcanzado en esta bandeja");
-                                return;
-                              }
-
-                              const nuevoCodigo = `${numBandeja}${nextPos}`; // Ejemplo: "10"
-                              const macDetectada = viewing.code || viewing.id;
-
-                              try {
-                                const payload = {
-                                  machine_id: macDetectada,
-                                  codigo_motor: nuevoCodigo, // Mandamos "10"
-                                  nombre_producto: "",
-                                  precio: 0,
-                                  stock: 0,
-                                  capacidad: 10
-                                };
-                                const res = await fetch(`${apiUrl}/inventario/actualizar`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify(payload)
-                                });
-                                const data = await res.json();
-                                if (data.success) {
-                                  toast.success(`Resorte M${nuevoCodigo} añadido al Planograma`);
-                                  // Lo inyectamos en la vista instantáneamente
-                                
-                                  setProductosModal(prev => [...prev, { ...payload, id: Math.random().toString(), name: "Vacío" }]);
-                                } else {
-                                  toast.error("Error al añadir resorte en la Base de Datos");
-                                }
-                              } catch (error) {
-                                toast.error("Error conectando con el servidor");
-                              }
-                            }}
+                            onClick={() => handleOpenAddSpring(numBandeja, resortesDeBandeja)}
                             className="border-2 border-dashed border-emerald-300 rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] cursor-pointer hover:bg-emerald-50 transition-colors w-full"
                           >
                             <Plus className="h-6 w-6 text-emerald-500 mb-1" />
@@ -892,6 +835,57 @@ const Machines = () => {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* --- MODAL PARA AÑADIR/EDITAR RESORTE (El pop-up elegante) --- */}
+      <Dialog open={springModal.open} onOpenChange={(open) => setSpringModal(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-xs text-center border-emerald-100">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-display text-emerald-900">
+              {springModal.isNew ? "Añadir Resorte" : "Ajustar Resorte"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 py-4 text-left">
+            <div>
+              <Label className="text-slate-600 font-semibold">Código del motor</Label>
+              <div className="flex mt-1 shadow-sm rounded-md h-12">
+                <span className="inline-flex items-center px-4 rounded-l-md border border-r-0 border-slate-200 bg-slate-100 text-slate-500 font-black text-xl">
+                  M
+                </span>
+                {/* Aquí está el input editable (como pediste, 10, 11, etc.) */}
+                <Input
+                  type="number"
+                  value={springModal.codigo_motor}
+                  onChange={(e) => setSpringModal(prev => ({ ...prev, codigo_motor: e.target.value }))}
+                  className="rounded-l-none font-bold text-2xl focus-visible:ring-emerald-500 h-12"
+                  placeholder="Ej. 10"
+                  disabled={!springModal.isNew} 
+                />
+              </div>
+              {springModal.isNew && (
+                <p className="text-xs text-muted-foreground mt-1.5 leading-tight">Puedes editar el número antes de guardarlo.</p>
+              )}
+            </div>
+            <div>
+              <Label className="text-slate-600 font-semibold">Capacidad máxima</Label>
+              <Input
+                type="number"
+                value={springModal.capacidad || ""}
+                onChange={(e) => setSpringModal(prev => ({ ...prev, capacidad: parseInt(e.target.value) || 0 }))}
+                className="font-bold text-2xl focus-visible:ring-emerald-500 mt-1 h-12 text-center"
+                min="1"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-2">
+            <Button variant="outline" className="h-11 px-6 font-semibold text-slate-500" onClick={() => setSpringModal(prev => ({ ...prev, open: false }))}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveSpring} className="h-11 px-6 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">
+              Guardar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
