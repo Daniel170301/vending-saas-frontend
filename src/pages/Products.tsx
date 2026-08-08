@@ -630,7 +630,7 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
     // 2. Construir el payload para la máquina ESP32
     const payload = {
-      machine_id: "D4-8A-FC-A5-26-AB",
+      machine_id: macActual,
       codigo_motor: slotTarget,
       nombre_producto: p.name,
       precio: customSalePrice,
