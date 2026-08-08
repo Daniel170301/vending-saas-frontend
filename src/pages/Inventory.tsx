@@ -109,7 +109,10 @@ const Inventory = () => {
   const [form, setForm] = useState<AlmacenProduct>(emptyForm);
   const [processing, setProcessing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
+const [stockMode, setStockMode] = useState<'units' | 'boxes'>('units');
+const [packQuantity, setPackQuantity] = useState(''); // Ej: 5 paquetes
+const [unitsPerPack, setUnitsPerPack] = useState(''); // Ej: 6 galletas por paquete
+const calculatedTotal = (Number(packQuantity) || 0) * (Number(unitsPerPack) || 0);
   const existingCategories = useMemo(() => {
     const cats = list.map(p => p.category).filter(Boolean);
     return Array.from(new Set(cats));
@@ -179,10 +182,12 @@ const Inventory = () => {
     }
   };
 
-  const saveProduct = async () => {
+const saveProduct = async () => {
     if (!form.name.trim()) return toast.error("El nombre es requerido");
     if (form.sale_price <= 0) return toast.error("El precio debe ser mayor a 0");
+    
     setProcessing(true);
+    
     try {
       const storedUser = localStorage.getItem("user");
       const user = storedUser ? JSON.parse(storedUser) : null;
@@ -190,21 +195,40 @@ const Inventory = () => {
         toast.error("Sesión no válida");
         return;
       }
-      const payload = { ...form, id_dueno: user.id || user.userId };
+
+      // --- AQUÍ SUCEDE LA MAGIA DE LA CALCULADORA ---
+      // Decide si guardar el número suelto o la multiplicación
+      const finalStock = stockMode === 'boxes' ? calculatedTotal : Number(form.stock_warehouse || 0);
+
+      // Reemplazamos el stock del formulario con nuestro stock calculado
+      const payload = { 
+        ...form, 
+        stock_warehouse: finalStock, 
+        id_dueno: user.id || user.userId 
+      };
+      // ----------------------------------------------
+
       const apiUrl = import.meta.env.VITE_API_URL;
       const isEditing = !!form.id;
       const url = isEditing ? `${apiUrl}/productos-almacen/${form.id}` : `${apiUrl}/productos-almacen`;
       const method = isEditing ? 'PUT' : 'POST';
+      
       const res = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      
       const data = await res.json();
+      
       if (data.success) {
         toast.success(isEditing ? "Producto actualizado" : "Producto creado exitosamente");
         setOpen(false);
         setForm(emptyForm);
+        // Reseteamos la calculadora
+        setPackQuantity('');
+        setUnitsPerPack('');
+        setStockMode('units');
         loadInventory();
       } else {
         toast.error(data.message || "Error al guardar el producto");
@@ -607,27 +631,124 @@ const confirmAssignment = async () => {
               </div>
             </div>
 {/* STOCKS Y TIPO DE UNIDAD (Ajustado a 3 columnas) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>Stock Actual</Label>
-                <Input disabled={!isEditingMode} type="number" value={form.stock_warehouse || ""} onChange={(e) => setForm({ ...form, stock_warehouse: parseInt(e.target.value) || 0 })} />
+{/* STOCKS Y TIPO DE UNIDAD */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <Label>Stock Mínimo</Label>
+                  <Input 
+                    disabled={!isEditingMode} 
+                    type="number"
+                    value={form.min_stock || ""} 
+                    onChange={(e) => setForm({ ...form, min_stock: parseInt(e.target.value) || 0 })} 
+                  />
+                </div>
+                <div>
+                  <Label>Tipo unidad</Label>
+                  <Select 
+                    disabled={!isEditingMode}
+                    value={form.unit_type} 
+                    onValueChange={(v) => setForm({ ...form, unit_type: v })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {UNIT_TYPES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label>Stock Mínimo</Label>
-                <Input disabled={!isEditingMode} type="number" value={form.min_stock || ""} onChange={(e) => setForm({ ...form, min_stock: parseInt(e.target.value) || 0 })} />
+
+              {/* SECCIÓN DE INVENTARIO INTELIGENTE */}
+              <div className="col-span-full border border-slate-200 rounded-xl p-4 bg-slate-50 mt-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-800">Stock Inicial (Almacén)</h4>
+                    <p className="text-[11px] text-slate-500">¿Cómo ingresarás la mercadería?</p>
+                  </div>
+                  
+                  {/* INTERRUPTOR UNIDADES / PAQUETES */}
+                  {isEditingMode && (
+                    <div className="flex bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setStockMode('units')}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                          stockMode === 'units' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        Unidades sueltas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStockMode('boxes')}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                          stockMode === 'boxes' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        Por Cajas/Paquetes
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* MODO 1: UNIDADES SUELTAS */}
+                {stockMode === 'units' ? (
+                  <div className="w-full sm:w-1/2">
+                    <Label className="text-xs mb-1.5 text-slate-600">Cantidad Total (Unidades)</Label>
+                    <Input
+                      disabled={!isEditingMode}
+                      type="number"
+                      placeholder="Ej. 30"
+                      value={form.stock_warehouse || ""}
+                      onChange={(e) => setForm({ ...form, stock_warehouse: parseInt(e.target.value) || 0 })}
+                      className="bg-white"
+                    />
+                  </div>
+                ) : (
+                  
+                  /* MODO 2: CALCULADORA POR PAQUETES */
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-end">
+                      <div>
+                        <Label className="text-xs mb-1.5 text-slate-600">Cant. de Paquetes/Cajas</Label>
+                        <Input
+                          disabled={!isEditingMode}
+                          type="number"
+                          min="1"
+                          placeholder="Ej. 5"
+                          value={packQuantity}
+                          onChange={(e) => setPackQuantity(e.target.value)}
+                          className="bg-white"
+                        />
+                      </div>
+                      
+                      <div className="pb-3 text-slate-400 font-bold text-sm">X</div>
+                      
+                      <div>
+                        <Label className="text-xs mb-1.5 text-slate-600">Unidades por Paquete</Label>
+                        <Input
+                          disabled={!isEditingMode}
+                          type="number"
+                          min="1"
+                          placeholder="Ej. 6"
+                          value={unitsPerPack}
+                          onChange={(e) => setUnitsPerPack(e.target.value)}
+                          className="bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    {/* RESULTADO AUTOMÁTICO VISUAL */}
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-lg flex justify-between items-center mt-2 shadow-sm">
+                      <span className="text-xs font-medium">Ingreso total al sistema:</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="font-bold text-xl">{calculatedTotal}</span>
+                        <span className="text-xs font-medium opacity-80">unidades</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <Label>Tipo unidad</Label>
-                <Select disabled={!isEditingMode} value={form.unit_type} onValueChange={(v) => setForm({ ...form, unit_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {UNIT_TYPES.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
           </div>
-          
           {/* NUEVO: Los botones del final cambian según el modo */}
           <DialogFooter>
             {!isEditingMode ? (
