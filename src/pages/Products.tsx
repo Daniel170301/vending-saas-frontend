@@ -735,7 +735,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
   <span className="text-xs text-slate-400">{cantidadVendida} productos vendidos</span>
 </div>
 
-{mode === "browse" && (
+{mode === "browse" && macActual &&(
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4 mb-4">
           {/* 1. Ventas Acumuladas */}
           <Card className="p-4 flex flex-col justify-between">
