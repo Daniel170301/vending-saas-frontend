@@ -1,7 +1,6 @@
 import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { setMoneyCurrency } from "@/lib/format";
 import { ArrowLeftRight, BarChart3, Boxes, Building2, LayoutDashboard, LogOut, Package, ShoppingCart, Users, UserSquare2, Truck, Warehouse, Wallet } from "lucide-react";
