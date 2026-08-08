@@ -72,6 +72,7 @@ const Products = () => {
   // Capturamos la MAC dinámica de la URL
 const macActual = searchParams.get("mac");
 const [machinesList, setMachinesList] = useState([]); 
+
 console.log("Máquinas que llegaron a React:", machinesList);
   const [machineSearch, setMachineSearch] = useState(""); // NUEVO: Buscador de máquinas
   // Agregamos "machine_output" a los modos posibles
@@ -87,6 +88,10 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
   const [uploading, setUploading] = useState(false);
   const [catDialog, setCatDialog] = useState<{ open: boolean; parent_id: string | null; name: string }>({ open: false, parent_id: null, name: "" });
   const [activeCat, setActiveCat] = useState<string | null>(null);
+  // Estados para el resumen financiero del Planograma
+  const [totalVentas, setTotalVentas] = useState(0);
+  const [cantidadVendida, setCantidadVendida] = useState(0);
+  const [gananciaTotal, setGananciaTotal] = useState(0);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
@@ -721,7 +726,23 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
           )
         }
       />
+{/* Tarjeta de Ventas Totales */}
+<div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-center shadow-sm">
+  <span className="text-sm text-slate-500 mb-1">Ventas Acumuladas</span>
+  <div className="text-2xl font-bold text-emerald-600">
+    S/ {totalVentas.toFixed(2)}
+  </div>
+  <span className="text-xs text-slate-400">{cantidadVendida} productos vendidos</span>
+</div>
 
+{/* Tarjeta de Ganancia Neta (Opcional) */}
+<div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-center shadow-sm">
+  <span className="text-sm text-slate-500 mb-1">Ganancia Estimada</span>
+  <div className="text-2xl font-bold text-blue-600">
+    S/ {gananciaTotal.toFixed(2)}
+  </div>
+  <span className="text-xs text-slate-400">Ingresos menos costo de almacén</span>
+</div>
       {mode === "browse" && (
         <div className="grid gap-3 grid-cols-2 mb-3">
           <Card className="p-3">
@@ -736,6 +757,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
           </Card>
         </div>
       )}
+
 
       {usedCategories.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1 scrollbar-thin">
@@ -863,6 +885,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
     {(() => {
      const maquinaSeleccionada = machinesList.find((m) => m.id === macActual);
       //const totalBandejas = maquinaSeleccionada?.layout?.trays?.length || 4;
+
       const totalBandejas = 6; // <-- ¡ESTA ES LA LÍNEA MÁGICA!
       return Array.from({ length: totalBandejas }, (_, i) => i + 1).map((numBandeja) => (
         <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5">
