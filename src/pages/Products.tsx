@@ -726,14 +726,7 @@ const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === 
           )
         }
       />
-{/* Tarjeta de Ventas Totales */}
-<div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-center shadow-sm">
-  <span className="text-sm text-slate-500 mb-1">Ventas Acumuladas</span>
-  <div className="text-2xl font-bold text-emerald-600">
-    S/ {totalVentas.toFixed(2)}
-  </div>
-  <span className="text-xs text-slate-400">{cantidadVendida} productos vendidos</span>
-</div>
+
 
 {mode === "browse" && macActual &&(
         <div className="grid gap-3 grid-cols-2 md:grid-cols-4 mb-4">
