@@ -24,13 +24,13 @@ const navItems = [
 ];
 
 // Bottom nav (mobile) — Compras y Ventas unidas en "Movimientos"
+// Bottom nav (mobile) - Reducido a 5 opciones exactas para diseño nativo
 const mobileNavItems = [
   { to: "/app", icon: LayoutDashboard, label: "Inicio", end: true },
   { to: "/app/machines", icon: Boxes, label: "Máquinas" },
-{ to: "/app/products", icon: Warehouse, label: "Planograma" },
+  { to: "/app/products", icon: Warehouse, label: "Planograma" },
   { to: "/app/inventory", icon: Package, label: "Inventario" },
-  { to: "/app/movements", icon: ArrowLeftRight, label: "Movimientos" },
-  { to: "/app/reports", icon: BarChart3, label: "Reportes" },
+  { to: "/app/sales", icon: Wallet, label: "Ventas" },
 ];
 
 const AppLayout = () => {
@@ -118,18 +118,23 @@ const AppLayout = () => {
         <Outlet />
       </main>
 
-      {/* Mobile bottom nav */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-sidebar border-t border-sidebar-border flex items-center justify-around py-2">
-        {mobileNavItems.map((it) => (
-          <NavLink key={it.to} to={it.to} end={it.end} className={({ isActive }) =>
-            cn("flex flex-col items-center gap-0.5 px-3 py-1 text-[10px]",
-              isActive ? "text-accent" : "text-sidebar-foreground/60")
-          }>
-            <it.icon className="h-5 w-5" />
-            {it.label}
-          </NavLink>
-        ))}
-      </div>
+{/* Mobile bottom nav - Diseño Play Store / App Store */}
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-sidebar border-t-0 rounded-t-3xl shadow-[0_-8px_20px_-5px_rgba(0,0,0,0.15)] flex items-center justify-around h-16 px-1 pb-1 mb-0">
+          {mobileNavItems.map((it) => (
+            <NavLink 
+              key={it.to} 
+              to={it.to} 
+              end={it.end} 
+              className={({ isActive }) => cn(
+                "flex flex-col items-center justify-center w-full h-full gap-1 transition-all duration-300",
+                isActive ? "text-accent scale-110 drop-shadow-sm" : "text-sidebar-foreground/50 active:scale-95"
+              )}
+            >
+              <it.icon className={cn("h-6 w-6 transition-transform duration-300", { "mb-0.5" : true })} />
+              <span className="text-[10px] font-semibold tracking-wide">{it.label}</span>
+            </NavLink>
+          ))}
+        </div>
     </div>
   );
 };
