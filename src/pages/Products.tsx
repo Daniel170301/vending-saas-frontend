@@ -89,13 +89,35 @@ const mode: "sale" | "expense" | "browse" | "machine_output" =
   const [catDialog, setCatDialog] = useState<{ open: boolean; parent_id: string | null; name: string }>({ open: false, parent_id: null, name: "" });
   const [activeCat, setActiveCat] = useState<string | null>(null);
   // Estados para el resumen financiero del Planograma
-  const [totalVentas, setTotalVentas] = useState(0);
-  const [cantidadVendida, setCantidadVendida] = useState(0);
-  const [gananciaTotal, setGananciaTotal] = useState(0);
+  const [allSales, setAllSales] = useState([]);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
 
-
+const loadSales = async () => {
+    try {
+      // 1. Buscamos quién es el usuario logueado (Idéntico a tu Sales.tsx)
+      const storedUser = localStorage.getItem("user");
+      const user = storedUser ? JSON.parse(storedUser) : null;
+      if (!user) return;
+      
+      const userId = user.id || user.userId;
+      const apiUrl = import.meta.env.VITE_API_URL || "";
+      
+      // 2. Armamos la URL exacta de tu historial de ventas
+      const baseUrl = apiUrl.replace(/\/api$/, '') + '/api/ventas/historial';
+      const fetchUrl = `${baseUrl}?user_id=${userId}`;
+      
+      const res = await fetch(fetchUrl);
+      const hwData = await res.json();
+      
+      if (hwData && Array.isArray(hwData.ventas)) {
+        // Guardamos los datos crudos del servidor en nuestro estado
+        setAllSales(hwData.ventas);
+      }
+    } catch (error) {
+      console.error("Error al cargar ventas en planograma:", error);
+    }
+  };
 // Estado para editar un resorte que ya tiene producto
   const [slotEditDialog, setSlotEditDialog] = useState({
     open: false,
@@ -286,6 +308,7 @@ const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; product: Pro
   useEffect(() => {
     if (user?.email) {
       loadMachines();
+      loadSales();
     }
   }, [user?.email]); // <-- Ahora React escuchará y disparará la función cuando detecte al usuario
 
@@ -688,7 +711,31 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
 const headerTitle = mode === "sale" ? "Selecciona productos a vender" : mode === "expense" ? "Selecciona producto a reponer": "Planograma";
 const headerDesc = mode === "sale"? "Toca + para añadir al carrito" : mode === "expense" ? "Registra una compra y aumenta stock": "Distribución de productos y resortes por máquina";
-  return (
+  // 1. Filtramos las ventas para que solo sean de la máquina que hemos abierto
+  const ventasDeEstaMaquina = allSales.filter(
+    (v) => String(v.machine_id) === String(macActual)
+  );
+
+  // 2. Sumamos los precios de venta
+  const totalVentas = ventasDeEstaMaquina.reduce(
+    (suma, v) => suma + (Number(v.precio) || 0), 
+    0
+  );
+
+  // 3. Cantidad vendida (como en tu reporte, cada registro de IoT es 1 unidad)
+  const cantidadVendida = ventasDeEstaMaquina.length;
+
+  // 4. Ganancia Total (Replicando la lógica de tu PDF: costo o 60% por defecto)
+  const gananciaTotal = ventasDeEstaMaquina.reduce((suma, v) => {
+    const precioVenta = Number(v.precio) || 0;
+    const costo = Number(v.unit_cost) || (precioVenta * 0.6);
+    const ganancia = precioVenta - costo;
+    return suma + ganancia;
+  }, 0);
+
+
+
+return (
     <div className="container py-8 pb-32">
 <PageHeader 
         title={headerTitle} 
