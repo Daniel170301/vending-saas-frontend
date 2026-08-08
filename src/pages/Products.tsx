@@ -959,82 +959,85 @@ return (
                 <span className="text-sm text-muted-foreground">#{numBandeja} · 6 resortes</span>
               </div>
 
-              {/* Cuadricula de 6 resortes */}
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                {[0, 1, 2, 3, 4, 5].map((posicion) => {
-                  // Genera: 10, 11, 12... 20, 21...
-                  const codigoMotor = `${numBandeja}${posicion}`;
-                  
-                  // OJO: Asegúrate de usar 'list' o 'filtered' según como tengas declarado tu estado de productos arriba
-                 const producto = list.find((p) => String(p.codigo_motor).trim() === String(codigoMotor).trim());
+{/* Cuadricula de resortes reales */}
+<div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+  {[0, 1, 2, 3, 4, 5].map((posicion) => {
+    // Genera: 10, 11, 12... 20, 21...
+    const codigoMotor = `${numBandeja}${posicion}`;
+    
+    // Buscamos el producto en la lista general de la máquina
+    const producto = list.find((p) => String(p.codigo_motor)?.trim() === String(codigoMotor).trim());
 
-                  // Lógica del semáforo visual
-                  let bgColor = "bg-card hover:bg-accent/50";
-                  let borderColor = "border-dashed border-gray-300";
+    // VALIDACIÓN CLAVE: Verificamos si el resorte tiene un producto real asignado
+    const tieneProductoReal = producto && producto.nombre_producto && producto.nombre_producto.trim() !== "";
 
-                  if (producto) {
-                    const stock = producto.stock || 0;
-                    const capacidad = producto.capacidad || 10;
-                    const porcentaje = capacidad > 0 ? (stock / capacidad) : 0;
+    // Lógica del semáforo visual (Solo se aplica si realmente hay un producto asignado)
+    let bgColor = "bg-card hover:bg-accent/50";
+    let borderColor = "border-dashed border-gray-300";
 
-                    if (porcentaje <= 0.3) {
-                      bgColor = "bg-red-50 hover:bg-red-100";
-                      borderColor = "border-solid border-red-400";
-                    } else if (porcentaje <= 0.7) {
-                      bgColor = "bg-yellow-50 hover:bg-yellow-100";
-                      borderColor = "border-solid border-yellow-400";
-                    } else {
-                      bgColor = "bg-emerald-50 hover:bg-emerald-100";
-                      borderColor = "border-solid border-emerald-400";
-                    }
-                  }
+    if (tieneProductoReal) {
+      const stock = producto.stock || 0;
+      const capacidad = producto.capacidad || 10;
+      const porcentaje = capacidad > 0 ? (stock / capacidad) : 0;
 
-                  return (
-                    <div
-                      key={codigoMotor}
-                      onClick={() => handleSlotClick(codigoMotor, producto)}
-                      className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative transition-colors cursor-pointer ${bgColor} ${borderColor}`}
-                    >
-                      <span className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/70">
-                        R{codigoMotor}
-                      </span>
-                      
-                      {producto ? (
-                        <div className="flex flex-col items-center mt-2 w-full text-center">
-                          <span className="text-xs font-bold line-clamp-2 leading-tight text-gray-800">
-                            {producto.nombre_producto}
-                          </span>
-                          <span className="text-sm font-bold text-primary mt-1">
-                            S/ {Number(producto.precio).toFixed(2)}
-                          </span>
-                          
-                          {/* Indicador de Stock vs Capacidad */}
-                          <div className="mt-2 w-full px-2">
-                            <div className="text-[10px] text-gray-600 mb-1 font-medium flex justify-between">
-                              <span>Stock: {producto.stock}</span>
-                              <span>Máx: {producto.capacidad || 10}</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-gray-200">
-                              <div 
-                                className={`h-full ${
-                                  (producto.stock / (producto.capacidad || 10)) <= 0.3 ? 'bg-red-500' : 
-                                  (producto.stock / (producto.capacidad || 10)) <= 0.7 ? 'bg-yellow-500' : 'bg-emerald-500'
-                                }`}
-                                style={{ width: `${Math.min(100, ((producto.stock || 0) / (producto.capacidad || 10)) * 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <div className="h-8 w-8 rounded border-2 border-dashed border-gray-300 mb-1"></div>
-                          <span className="text-[11px] text-muted-foreground">Vacío</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+      if (porcentaje <= 0.3) {
+        bgColor = "bg-red-50 hover:bg-red-100";
+        borderColor = "border-solid border-red-400";
+      } else if (porcentaje <= 0.7) {
+        bgColor = "bg-yellow-50 hover:bg-yellow-100";
+        borderColor = "border-solid border-yellow-400";
+      } else {
+        bgColor = "bg-emerald-50 hover:bg-emerald-100";
+        borderColor = "border-solid border-emerald-400";
+      }
+    }
+
+    return (
+      <div
+        key={codigoMotor}
+        onClick={() => handleSlotClick(codigoMotor, tieneProductoReal ? producto : null)}
+        className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative transition-colors cursor-pointer ${bgColor} ${borderColor}`}
+      >
+        <span className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/70">
+          R{codigoMotor}
+        </span>
+        
+        {tieneProductoReal ? (
+          <div className="flex flex-col items-center mt-2 w-full text-center">
+            <span className="text-xs font-bold line-clamp-2 leading-tight text-gray-800">
+              {producto.nombre_producto}
+            </span>
+            <span className="text-sm font-bold text-primary mt-1">
+              S/ {Number(producto.precio || 0).toFixed(2)}
+            </span>
+            
+            {/* Indicador de Stock vs Capacidad */}
+            <div className="mt-2 w-full px-2">
+              <div className="text-[10px] text-gray-600 mb-1 font-medium flex justify-between">
+                <span>Stock: {producto.stock || 0}</span>
+                <span>Máx: {producto.capacidad || 10}</span>
               </div>
+              <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-gray-200">
+                <div 
+                  className={`h-full ${
+                    ((producto.stock || 0) / (producto.capacidad || 10)) <= 0.3 ? 'bg-red-500' : 
+                    ((producto.stock || 0) / (producto.capacidad || 10)) <= 0.7 ? 'bg-yellow-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${Math.min(100, ((producto.stock || 0) / (producto.capacidad || 10)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center mt-2">
+            <div className="h-8 w-8 rounded border-2 border-dashed border-gray-300 mb-1"></div>
+            <span className="text-[11px] text-muted-foreground">Vacío</span>
+          </div>
+        )}
+      </div>
+    );
+  })}
+</div>
             </div>
       ));
 })()}
