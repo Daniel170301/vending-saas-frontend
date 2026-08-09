@@ -944,143 +944,125 @@ return (
         ) : (
           <div className="space-y-6 mt-6">
             {/* AQUÍ SIGUE EL CÓDIGO DE LAS BANDEJAS REALES QUE YA TIENES */}
-{/* LEEMOS LAS BANDEJAS REALES DE LA MÁQUINA DESDE LA BASE DE DATOS */}
-    {(() => {
-     const maquinaSeleccionada = machinesList.find((m) => m.id === macActual);
-      //const totalBandejas = maquinaSeleccionada?.layout?.trays?.length || 4;
+{/* AQUÍ SIGUE EL CÓDIGO DE LAS BANDEJAS REALES QUE YA TIENES */}
+            {/* LEEMOS LAS BANDEJAS REALES DE LA MÁQUINA DESDE LA BASE DE DATOS */}
+            {(() => {
+              const maquinaSeleccionada = machinesList.find((m) => m.id === macActual);
+              const totalBandejas = 6; // <-- ESTA ES LA LÍNEA MÁGICA!
 
-      const totalBandejas = 6; // <-- ¡ESTA ES LA LÍNEA MÁGICA!
-      return Array.from({ length: totalBandejas }, (_, i) => i + 1).map((numBandeja) => (
-        <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5">
+              // 1. Agrupamos los resortes reales una sola vez ANTES del bucle
+              const bandejasConResortes: { [key: number]: any[] } = {};
+              list.forEach((p) => {
+                if (p.codigo_motor) {
+                  const numBandeja = parseInt(String(p.codigo_motor).charAt(0), 10) || 1;
+                  if (!bandejasConResortes[numBandeja]) {
+                    bandejasConResortes[numBandeja] = [];
+                  }
+                  bandejasConResortes[numBandeja].push(p);
+                }
+              });
 
-              {/* Cabecera de la Bandeja */}
-              <div className="flex justify-between items-center mb-4 pb-2 border-b">
-                <h3 className="font-bold text-lg text-primary-deep">Bandeja {numBandeja}</h3>
-                <span className="text-sm text-muted-foreground">#{numBandeja} · 6 resortes</span>
-              </div>
+              // 2. Iteramos solo UNA vez del 1 al total de bandejas (6)
+              return Array.from({ length: totalBandejas }, (_, i) => i + 1).map((numBandeja) => {
+                
+                // Obtenemos los resortes de ESTA bandeja específica y los ordenamos
+                const resortesDeEstaBandeja = (bandejasConResortes[numBandeja] || []).sort(
+                  (a, b) => Number(a.codigo_motor) - Number(b.codigo_motor)
+                );
 
-{/* LEEMOS Y MOSTRAMOS ÚNICAMENTE LOS RESORTES REALES CONFIGURADOS */}
-        {(() => {
-          // 1. Agrupamos los resortes reales que tiene esta máquina por su número de bandeja
-          const bandejasConResortes: { [key: number]: any[] } = {};
-          
-          list.forEach((p) => {
-            if (p.codigo_motor) {
-              const numBandeja = parseInt(String(p.codigo_motor).charAt(0), 10) || 1;
-              if (!bandejasConResortes[numBandeja]) {
-                bandejasConResortes[numBandeja] = [];
-              }
-              bandejasConResortes[numBandeja].push(p);
-            }
-          });
+                return (
+                  <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5 mb-6">
+                    {/* Cabecera de la Bandeja */}
+                    <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                      <h3 className="font-bold text-lg text-primary-deep">Bandeja {numBandeja}</h3>
+                      <span className="text-sm text-muted-foreground">
+                        #{numBandeja} - {resortesDeEstaBandeja.length} resortes
+                      </span>
+                    </div>
 
-          // 2. Obtenemos solo los números de bandeja que tienen al menos un resorte creado
-          const numerosDeBandejas = Object.keys(bandejasConResortes).map(Number).sort((a, b) => a - b);
+                    {/* Cuadrícula dinámica de resortes */}
+                    {resortesDeEstaBandeja.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <Package className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+                          <p className="text-sm text-muted-foreground">Sin resortes configurados en esta bandeja.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                          {resortesDeEstaBandeja.map((producto) => {
+                            const codigoMotor = producto.codigo_motor;
+                            const tieneProductoReal = producto.nombre_producto && producto.nombre_producto.trim() !== "";
 
-          if (numerosDeBandejas.length === 0) {
-            return (
-              <div className="p-12 text-center bg-card rounded-2xl border mt-4">
-                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">Esta máquina aún no tiene resortes configurados.</p>
-                <p className="text-xs text-muted-foreground mt-1">Ve a la sección de Máquinas y añade los resortes (ej. M11, M13) para verlos aquí.</p>
-              </div>
-            );
-          }
+                            // Lógica del semáforo visual
+                            let bgColor = "bg-card hover:bg-accent/50";
+                            let borderColor = "border-dashed border-gray-300";
 
-          // 3. Dibujamos dinámicamente solo las bandejas y resortes existentes
-          return numerosDeBandejas.map((numBandeja) => {
-            // Ordenamos los resortes de menor a mayor (Ej: M11, M13, M15)
-            const resortesDeEstaBandeja = bandejasConResortes[numBandeja].sort((a, b) => Number(a.codigo_motor) - Number(b.codigo_motor));
+                            if (tieneProductoReal) {
+                              const stock = Number(producto.stock) || 0;
+                              const capacidad = Number(producto.capacidad) || 10;
+                              const porcentaje = capacidad > 0 ? (stock / capacidad) : 0;
 
-            return (
-              <div key={numBandeja} className="bg-card rounded-2xl border shadow-sm p-5 mb-6">
-                {/* Cabecera de la Bandeja */}
-                <div className="flex justify-between items-center mb-4 pb-2 border-b">
-                  <h3 className="font-bold text-lg text-primary-deep">Bandeja {numBandeja}</h3>
-                  <span className="text-sm text-muted-foreground">#{numBandeja} · {resortesDeEstaBandeja.length} resortes</span>
-                </div>
+                              if (porcentaje <= 0.3) {
+                                bgColor = "bg-red-50 hover:bg-red-100";
+                                borderColor = "border-solid border-red-400";
+                              } else if (porcentaje <= 0.7) {
+                                bgColor = "bg-yellow-50 hover:bg-yellow-100";
+                                borderColor = "border-solid border-yellow-400";
+                              } else {
+                                bgColor = "bg-emerald-50 hover:bg-emerald-100";
+                                borderColor = "border-solid border-emerald-400";
+                              }
+                            }
 
-                {/* Cuadrícula dinámica adaptada a la cantidad exacta de resortes */}
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                  {resortesDeEstaBandeja.map((producto) => {
-                    const codigoMotor = producto.codigo_motor; // Ej: "11", "13", "15"
-                    const tieneProductoReal = producto.nombre_producto && producto.nombre_producto.trim() !== "";
-
-                    // Lógica del semáforo visual
-                    let bgColor = "bg-card hover:bg-accent/50";
-                    let borderColor = "border-dashed border-gray-300";
-
-                    if (tieneProductoReal) {
-                      const stock = Number(producto.stock) || 0;
-                      const capacidad = Number(producto.capacidad) || 10;
-                      const porcentaje = capacidad > 0 ? (stock / capacidad) : 0;
-
-                      if (porcentaje <= 0.3) {
-                        bgColor = "bg-red-50 hover:bg-red-100";
-                        borderColor = "border-solid border-red-400";
-                      } else if (porcentaje <= 0.7) {
-                        bgColor = "bg-yellow-50 hover:bg-yellow-100";
-                        borderColor = "border-solid border-yellow-400";
-                      } else {
-                        bgColor = "bg-emerald-50 hover:bg-emerald-100";
-                        borderColor = "border-solid border-emerald-400";
-                      }
-                    }
-
-                    return (
-                      <div
-                        key={codigoMotor}
-                        onClick={() => handleSlotClick(codigoMotor, tieneProductoReal ? producto : null)}
-                        className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative transition-colors cursor-pointer ${bgColor} ${borderColor}`}
-                      >
-                        {/* Mostramos la R acompañada del número de motor real (Ej: R11, R13) */}
-                        <span className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/70">
-                          R{codigoMotor}
-                        </span>
-
-                        {tieneProductoReal ? (
-                          <div className="flex flex-col items-center mt-2 w-full text-center">
-                            <span className="text-xs font-bold line-clamp-2 leading-tight text-gray-800">
-                              {producto.nombre_producto}
-                            </span>
-                            <span className="text-sm font-bold text-primary mt-1">
-                              S/ {Number(producto.precio || 0).toFixed(2)}
-                            </span>
-                            
-                            {/* Indicador de Stock vs Capacidad */}
-                            <div className="mt-2 w-full px-2">
-                              <div className="text-[10px] text-gray-600 mb-1 font-medium flex justify-between">
-                                <span>Stock: {Number(producto.stock) || 0}</span>
-                                <span>Máx: {Number(producto.capacidad) || 10}</span>
+                            return (
+                              <div
+                                key={codigoMotor}
+                                onClick={() => handleSlotClick(codigoMotor, tieneProductoReal ? producto : null)}
+                                className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center min-h-[110px] relative transition-colors cursor-pointer ${bgColor} ${borderColor}`}
+                              >
+                                <span className="absolute top-2 left-2 text-xs font-bold text-muted-foreground/70">
+                                  R{codigoMotor}
+                                </span>
+                                {tieneProductoReal ? (
+                                  <div className="flex flex-col items-center mt-2 w-full text-center">
+                                    <span className="text-xs font-bold text-gray-800 line-clamp-2 leading-tight">
+                                      {producto.nombre_producto}
+                                    </span>
+                                    <span className="text-sm font-bold text-primary mt-1">
+                                      S/ {Number(producto.precio || 0).toFixed(2)}
+                                    </span>
+                                    {/* Indicador de Stock vs Capacidad */}
+                                    <div className="mt-2 w-full px-2">
+                                      <div className="text-[10px] text-gray-600 mb-1 font-medium flex justify-between">
+                                        <span>Stock: {Number(producto.stock) || 0}</span>
+                                        <span>Máx: {Number(producto.capacidad) || 10}</span>
+                                      </div>
+                                      <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-gray-200">
+                                        <div
+                                          className={`h-full ${
+                                            ((Number(producto.stock) || 0) / (Number(producto.capacidad) || 10)) <= 0.3 ? 'bg-red-500' :
+                                            ((Number(producto.stock) || 0) / (Number(producto.capacidad) || 10)) <= 0.7 ? 'bg-yellow-500' :
+                                            'bg-emerald-500'
+                                          }`}
+                                          style={{ width: `${Math.min(100, ((Number(producto.stock) || 0) / (Number(producto.capacidad) || 10)) * 100)}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center mt-2">
+                                    <div className="h-8 w-8 rounded border-2 border-dashed border-gray-300 mb-1"></div>
+                                    <span className="text-[11px] text-muted-foreground">Vacío</span>
+                                  </div>
+                                )}
                               </div>
-                              <div className="h-1.5 w-full bg-white rounded-full overflow-hidden border border-gray-200">
-                                <div 
-                                  className={`h-full ${
-                                    ((Number(producto.stock) || 0) / (Number(producto.capacidad) || 10)) <= 0.3 ? 'bg-red-500' : 
-                                    ((Number(producto.stock) || 0) / (Number(producto.capacidad) || 10)) <= 0.7 ? 'bg-yellow-500' : 'bg-emerald-500'
-                                  }`}
-                                  style={{ width: `${Math.min(100, ((Number(producto.stock) || 0) / (Number(producto.capacidad) || 10)) * 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center mt-2">
-                            <div className="h-8 w-8 rounded border-2 border-dashed border-gray-300 mb-1"></div>
-                            <span className="text-[11px] text-muted-foreground">Vacío</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          });
-        })()}
-            </div>
-      ));
-})()}
+                            );
+                          })}
+                        </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
         
 </div>
       
